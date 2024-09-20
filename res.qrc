@@ -3,5 +3,10 @@
         <file>res/bg.png</file>
         <file>res/startBtn.png</file>
         <file>res/ButtonSound.wav</file>
+        <file>res/rlbp.jpg</file>
+        <file>res/login.png</file>
+        <file>res/register.png</file>
+        <file>res/button.png</file>
+        <file>users.txt</file>
     </qresource>
 </RCC>

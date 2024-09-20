@@ -12,14 +12,19 @@ CONFIG += c++17
 SOURCES += \
     imgbutton.cpp \
     main.cpp \
-    widget.cpp
+    mainwindow.cpp \
+    registerloginwindow.cpp \
+    user.cpp
 
 HEADERS += \
     imgbutton.h \
-    widget.h
+    mainwindow.h \
+    registerloginwindow.h \
+    user.h
 
 FORMS += \
-    widget.ui
+    mainwindow.ui \
+    registerloginwindow.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

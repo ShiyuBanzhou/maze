@@ -1,11 +1,12 @@
-#include "widget.h"
-#include "ui_widget.h"
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
 #include "imgbutton.h"
 
+#include <QPainter>
 #include <QTimer>
-Widget::Widget(QWidget *parent)
+MainWindow::MainWindow(QWidget *parent)
     : QWidget(parent)
-    , ui(new Ui::Widget)
+    , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
     // 设置固定大小的主窗口
@@ -16,6 +17,8 @@ Widget::Widget(QWidget *parent)
     startButton->setParent(this);
     startButton->move(this->width()*0.41, this->height()*0.6);
     startButton->show();
+
+    // 开始按钮动画实现
     connect(startButton, &ImgButton::clicked, [=](){
         //按钮弹跳
         startButton->buttonDown();
@@ -29,13 +32,13 @@ Widget::Widget(QWidget *parent)
 
 }
 
-Widget::~Widget()
+MainWindow::~MainWindow()
 {
     delete ui;
 }
 
 // 重载绘制主背景
-void Widget::paintEvent(QPaintEvent *)
+void MainWindow::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
     painter.drawPixmap(0, 0, width(), height(), QPixmap(":/res/bg.png"));
