@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>注册登录界面</string>
   </property>
   <widget class="QWidget" name="verticalLayoutWidget">
    <property name="geometry">

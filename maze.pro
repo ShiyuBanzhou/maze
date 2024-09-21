@@ -13,17 +13,22 @@ SOURCES += \
     imgbutton.cpp \
     main.cpp \
     mainwindow.cpp \
+    mazegenerator.cpp \
+    playwindow.cpp \
     registerloginwindow.cpp \
     user.cpp
 
 HEADERS += \
     imgbutton.h \
     mainwindow.h \
+    mazegenerator.h \
+    playwindow.h \
     registerloginwindow.h \
     user.h
 
 FORMS += \
     mainwindow.ui \
+    playwindow.ui \
     registerloginwindow.ui
 
 # Default rules for deployment.
