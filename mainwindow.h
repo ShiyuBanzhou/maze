@@ -1,8 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "registerloginwindow.h"
-#include "ui_registerloginwindow.h"
 #include <QPainter>
 #include <QWidget>
 
@@ -16,9 +14,6 @@ class MainWindow : public QWidget {
     Q_OBJECT
 
   public:
-    // 注册登录窗口
-    RegisterLoginWindow *registerLoginWindow = NULL;
-
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void paintEvent(QPaintEvent *event); // 重载绘制主背景

@@ -13,6 +13,7 @@ SOURCES += \
     imgbutton.cpp \
     main.cpp \
     mainwindow.cpp \
+    mapdata.cpp \
     mazegenerator.cpp \
     playwindow.cpp \
     registerloginwindow.cpp \
@@ -21,6 +22,7 @@ SOURCES += \
 HEADERS += \
     imgbutton.h \
     mainwindow.h \
+    mapdata.h \
     mazegenerator.h \
     playwindow.h \
     registerloginwindow.h \
