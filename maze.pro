@@ -17,6 +17,7 @@ SOURCES += \
     mazegenerator.cpp \
     playwindow.cpp \
     registerloginwindow.cpp \
+    tiletexture.cpp \
     user.cpp
 
 HEADERS += \
@@ -26,6 +27,7 @@ HEADERS += \
     mazegenerator.h \
     playwindow.h \
     registerloginwindow.h \
+    tiletexture.h \
     user.h
 
 FORMS += \

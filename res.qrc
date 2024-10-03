@@ -8,5 +8,9 @@
         <file>res/register.png</file>
         <file>res/button.png</file>
         <file>users.txt</file>
+        <file>res/destination.png</file>
+        <file>res/road.png</file>
+        <file>res/start.png</file>
+        <file>res/wall.png</file>
     </qresource>
 </RCC>

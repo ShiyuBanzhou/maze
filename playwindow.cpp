@@ -1,6 +1,7 @@
 #include "playwindow.h"
 #include "ui_playwindow.h"
 #include "mazegenerator.h"
+#include "tiletexture.h"
 
 #include <QPainter>
 
@@ -21,6 +22,29 @@ PlayWindow::PlayWindow(QWidget *parent)
     */
     MazeGenerator *map = new MazeGenerator(15);
     this->mazeMap = map->getMazeMap();
+
+    // 创建TileTexture对象并添加到窗口
+    for (int i = 0; i < mazeMap.size(); ++i) {
+        for (int j = 0; j < mazeMap[i].size(); ++j) {
+            TileStatus status;
+            if (mazeMap[i][j] == 0) {
+                status = WALL; // 0表示墙
+            } else if (mazeMap[i][j] == 1) {
+                status = PATH; // 1表示通路
+            } else if (mazeMap[i][j] == 2) {
+                status = STARTING; // 2表示起始点
+            } else {
+                status = ENDING; // 其他表示目的地
+            }
+
+            // 创建TileTexture对象
+            TileTexture *tile = new TileTexture(status);
+            tile->setParent(this); // 设置父对象
+            tile->move(j * (600 / mazeMap.size()), i * (600 / mazeMap.size())); // 设置位置
+            tile->show(); // 显示瓷砖
+        }
+    }
+
 }
 
 PlayWindow::~PlayWindow()
@@ -33,17 +57,4 @@ void PlayWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event); // 忽略事件参数
 
-    QPainter painter(this);
-    int cellSize = 40; // 每个单元格的大小
-
-    for (int i = 0; i < mazeMap.size(); i++) {
-        for (int j = 0; j < mazeMap[i].size(); j++) {
-            if (mazeMap[i][j] == 1) {
-                painter.setBrush(Qt::white); // 路径为白色
-            } else {
-                painter.setBrush(Qt::black); // 墙为黑色
-            }
-            painter.drawRect(j * cellSize, i * cellSize, cellSize, cellSize); // 绘制矩形
-        }
-    }
 }
