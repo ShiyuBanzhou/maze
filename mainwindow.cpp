@@ -21,8 +21,10 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent), ui(new Ui::MainWindow
         startButton->buttonDown();
         startButton->buttonUp();
 
-        // 0.3秒后打开选择关卡页面
-        QTimer::singleShot(300, this, [=]() { this->hide(); });
+        // 0.3秒后返回开始游戏信号
+        QTimer::singleShot(300, this, [=]() {
+            emit beginGame();
+        });
     });
 }
 

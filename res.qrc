@@ -12,5 +12,11 @@
         <file>res/road.png</file>
         <file>res/start.png</file>
         <file>res/wall.png</file>
+        <file>res/chooseBtn_1.png</file>
+        <file>res/chooseBtn_2.png</file>
+        <file>res/backBtn_1.png</file>
+        <file>res/backBtn_2.png</file>
+        <file>res/mapSelctionBp.png</file>
+        <file>res/statusBackground.png</file>
     </qresource>
 </RCC>
