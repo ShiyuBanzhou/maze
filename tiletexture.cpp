@@ -32,3 +32,12 @@ void TileTexture::setSize(int Size)
     setFixedSize(Size, Size);
     setIconSize(QSize(Size, Size));
 }
+
+void TileTexture::changeStatus(TileStatus status)
+{
+    this->status = status;
+    //设置图标
+    QPixmap pix;
+    pix.load(statusToPath[status]);
+    setIcon(QIcon(pix));
+}
