@@ -18,5 +18,6 @@
         <file>res/backBtn_2.png</file>
         <file>res/mapSelctionBp.png</file>
         <file>res/statusBackground.png</file>
+        <file>res/autoBt.png</file>
     </qresource>
 </RCC>

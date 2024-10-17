@@ -19,6 +19,8 @@ public:
     explicit PlayWindow(QString mapPath, QWidget *parent = nullptr);
     ~PlayWindow();
     void setMapPath(QString mapPath); // 设置地图地址
+    // 非递归深度优先搜索实现寻路，如果有通路，返回true
+    bool findWay(bool drawPath); // 参数设置true，会绘制可行路线，否则不绘制
 
 protected:
     void paintEvent(QPaintEvent *event) override; // 重写paintEvent
@@ -29,6 +31,13 @@ private:
     TileTexture * tiles[31][31]; //地图图块
     void keyPressEvent(QKeyEvent *) override;    //监听键盘事件，实现移动
     int posX, posY, startX, startY, endX, endY; //当前位置、起点和终点的坐标
+    // 探索路径策略
+    const int MOVE_STRATEGY[4][2] = {
+        {0, 1},     // 向下
+        {1, 0},     // 向右
+        {0,-1},     // 向上
+        {-1,0}      // 向左
+    };
 };
 
 #endif // PLAYWINDOW_H
