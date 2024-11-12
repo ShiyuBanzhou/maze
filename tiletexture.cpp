@@ -18,11 +18,26 @@ TileTexture::TileTexture(TileStatus status)
 
     //设置按钮大小为图片大小
     setFixedSize(40, 40);
-
     //设置按钮为不规则样式
     setStyleSheet("QPushButton{border:0px;}");
 
     //设置图标
     setIcon(QIcon(pix));
     setIconSize(QSize(40, 40));
+}
+
+// 设置大小
+void TileTexture::setSize(int Size)
+{
+    setFixedSize(Size, Size);
+    setIconSize(QSize(Size, Size));
+}
+
+void TileTexture::changeStatus(TileStatus status)
+{
+    this->status = status;
+    //设置图标
+    QPixmap pix;
+    pix.load(statusToPath[status]);
+    setIcon(QIcon(pix));
 }

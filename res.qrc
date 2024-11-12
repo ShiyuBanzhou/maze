@@ -12,5 +12,28 @@
         <file>res/road.png</file>
         <file>res/start.png</file>
         <file>res/wall.png</file>
+        <file>res/chooseBtn_1.png</file>
+        <file>res/chooseBtn_2.png</file>
+        <file>res/backBtn_1.png</file>
+        <file>res/backBtn_2.png</file>
+        <file>res/mapSelctionBp.png</file>
+        <file>res/statusBackground.png</file>
+        <file>res/autoBt.png</file>
+        <file>mapdata/1.mapdata</file>
+        <file>mapdata/2.mapdata</file>
+        <file>mapdata/3.mapdata</file>
+        <file>mapdata/4.mapdata</file>
+        <file>mapdata/5.mapdata</file>
+        <file>mapdata/6.mapdata</file>
+        <file>mapdata/7.mapdata</file>
+        <file>mapdata/8.mapdata</file>
+        <file>mapdata/9.mapdata</file>
+        <file>mapdata/10.mapdata</file>
+        <file>mapdata/11.mapdata</file>
+        <file>mapdata/12.mapdata</file>
+        <file>mapdata/13.mapdata</file>
+        <file>mapdata/14.mapdata</file>
+        <file>mapdata/15.mapdata</file>
+        <file>mapdata/16.mapdata</file>
     </qresource>
 </RCC>

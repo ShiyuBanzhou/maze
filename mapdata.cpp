@@ -2,6 +2,17 @@
 
 #include <QFile>
 #include <QTextStream>
+#include <QDebug>
+
+MapData::MapData()
+{
+    // 初始化地图数组
+    for(int i = 0; i < this->maxSize; i++){
+        for(int j = 0; j < this->mapSize; j++){
+            this->mazeMap[i][j] = 0;
+        }
+    }
+}
 
 MapData::MapData(const int &mapSize, const int mazeMap[31][31])
 {
@@ -21,9 +32,20 @@ MapData::MapData(const int &mapSize, const int mazeMap[31][31])
 }
 
 // 加载地图
-void MapData::loadMap(const QString &mapPath)
+void MapData::loadMap()
 {
-    QFile data(mapPath);
+    QFile data(this->mapPath);
+    if (data.isOpen()) {
+        data.close(); // 先关闭再重新打开
+    }
+    if (!data.open(QFile::ReadOnly)) {
+        // 处理文件打开失败
+        qDebug() << "无法打开文件:" << this->mapPath;
+        return;
+    }
+    if (data.isOpen()) {
+        data.close(); // 先关闭再重新打开
+    }
     if (data.open(QFile::ReadOnly))
     {
         QTextStream in(&data);
@@ -41,9 +63,10 @@ void MapData::loadMap(const QString &mapPath)
 }
 
 // 保存地图
-void MapData::saveMap(const QString &mapPath)
+void MapData::saveMap()
 {
-    QFile data(mapPath);
+
+    QFile data(this->mapPath);
     if(data.open(QFile::WriteOnly | QIODevice::Truncate)){
         /* QIODevice::Truncate
          * 打开的文件若已存在，则截取其文件长度为0
@@ -58,4 +81,16 @@ void MapData::saveMap(const QString &mapPath)
             out << "\n";
         }
     }
+}
+
+// 获取地图尺寸
+int MapData::getMapSize()
+{
+    return this->mapSize;
+}
+
+// 设置地图路径
+void MapData::setMapPath(QString mapPath)
+{
+    this->mapPath = mapPath;
 }

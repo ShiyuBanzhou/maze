@@ -26,7 +26,7 @@ QVector<QVector<int> > MazeGenerator::createMaze()
     QStack<QPair<int, int>> st; // 用于路径回溯
     st.push(QPair<int, int>(startX, startY));
 
-    bool isNotConnected = 1; //是否不连通
+    bool isNotConnected = true; //是否不连通
 
     while(isNotConnected && !st.isEmpty()){
         // 当前查询节点坐标
@@ -50,26 +50,31 @@ QVector<QVector<int> > MazeGenerator::createMaze()
             mp[nextPoint.first][nextPoint.second] = 1;
             st.push(nextPoint);
         }
-        //计算地图是否全部连通，考虑如果奇数行奇数列都为路则全部连通，否则没有连通
+        // 检查地图的连通性：如果所有奇数行和奇数列的单元格都是路径（1），则地图连通；否则，不连通。
         int tempx = 0;
-        isNotConnected = 0;
+        isNotConnected = false;
         for(QVector<int> y : mp)
         {
+            /*
+             * tempx 表征第几行
+             * tempy 表征第几列
+             * x 表征元素属性（墙or路）
+            */
             int tempy;
-            if(tempx % 2 == 1) //奇数行再遍历
+            if(tempx % 2 == 1) // 奇数行索引
             {
                 tempy=0;
                 for(int x : y)
                 {
-                    if(tempy % 2 == 1 && x == 0) //看奇数行奇数列是否为墙
+                    if(tempy % 2 == 1 && x == 0) // 看奇数行奇数列是否为墙
                     { // 如果为墙则不连通
-                        isNotConnected=1;
+                        isNotConnected = true;
                         break;
                     }
                     tempy++;
                 }
             }
-            if(isNotConnected==1)
+            if(isNotConnected == true)
                 break;
             tempx++;
         }

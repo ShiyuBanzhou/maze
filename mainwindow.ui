@@ -25,6 +25,19 @@
   <property name="windowTitle">
    <string>迷宫</string>
   </property>
+  <widget class="QPushButton" name="pushButton">
+   <property name="geometry">
+    <rect>
+     <x>328</x>
+     <y>400</y>
+     <width>140</width>
+     <height>40</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>随机生成</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>
