@@ -35,5 +35,11 @@
         <file>mapdata/14.mapdata</file>
         <file>mapdata/15.mapdata</file>
         <file>mapdata/16.mapdata</file>
+        <file>res/mapCreateBtn.png</file>
+        <file>res/randomBtn.png</file>
+        <file>res/minusBtn_1.png</file>
+        <file>res/minusBtn_2.png</file>
+        <file>res/plusBtn_1.png</file>
+        <file>res/plusBtn_2.png</file>
     </qresource>
 </RCC>

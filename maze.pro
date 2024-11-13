@@ -14,6 +14,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     mapdata.cpp \
+    mapeditwindow.cpp \
     mapselectwindow.cpp \
     mazegenerator.cpp \
     playwindow.cpp \
@@ -25,6 +26,7 @@ HEADERS += \
     imgbutton.h \
     mainwindow.h \
     mapdata.h \
+    mapeditwindow.h \
     mapselectwindow.h \
     mazegenerator.h \
     playwindow.h \
@@ -34,6 +36,7 @@ HEADERS += \
 
 FORMS += \
     mainwindow.ui \
+    mapeditwindow.ui \
     mapselectwindow.ui \
     playwindow.ui \
     registerloginwindow.ui

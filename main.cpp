@@ -3,6 +3,7 @@
 #include "qstandardpaths.h"
 #include "registerloginwindow.h"
 #include "mapselectwindow.h"
+#include "mapeditwindow.h"
 
 #include <QApplication>
 #include <QThread>
@@ -28,6 +29,8 @@ int main(int argc, char *argv[]) {
     MapSelectWindow msw;
     // 游戏界面
     PlayWindow *plw;
+    // 地图编辑器界面
+    MapEditWindow mew;
 
     // 界面呈现
     rlw.show();
@@ -44,6 +47,18 @@ int main(int argc, char *argv[]) {
         msw.show();    // 显示主窗口
     });
 
+    // 连接主窗口的点击地图编辑器信号，显示选关界面并关闭主窗口
+    QObject::connect(&mw, &MainWindow::mapCreate, [&]() {
+        mw.close();
+        mew.show();
+    });
+
+    // 连接地图编辑器界面的返回信号，返回主界面并关闭地图编辑器界面
+    QObject::connect(&mew, &MapEditWindow::backBtnClicked, [&]() {
+        mew.close();
+        mw.show();
+    });
+
     // 连接选关界面的选关信号，显示游戏窗口并关闭选关界面
     QObject::connect(&msw, &MapSelectWindow::levelSelected, [&](int level) {
         plw = new PlayWindow(mapdataFilePath + QString::number(level) + ".mapdata");
@@ -51,7 +66,7 @@ int main(int argc, char *argv[]) {
         plw->show();
     });
 
-    // 连接选关界面的选关信号，返回主界面并关闭选关界面
+    // 连接选关界面的返回信号，返回主界面并关闭选关界面
     QObject::connect(&msw, &MapSelectWindow::backBtnClicked, [&]() {
         msw.close();
         mw.show();

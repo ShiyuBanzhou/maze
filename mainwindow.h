@@ -19,8 +19,7 @@ public:
     void paintEvent(QPaintEvent *event); // 重载绘制主背景
 signals:
     void beginGame(); // 开始游戏按钮信号
-private slots:
-    void on_pushButton_clicked();
+    void mapCreate(); // 制作地图按钮信号
 
 private:
     Ui::MainWindow *ui;
