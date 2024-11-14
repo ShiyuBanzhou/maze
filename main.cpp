@@ -59,6 +59,12 @@ int main(int argc, char *argv[]) {
         mw.show();
     });
 
+    QObject::connect(&mew, &MapEditWindow::randomMap, [&](MapData *md) {
+        mew.close();
+        plw = new PlayWindow(md);
+        plw->show();
+    });
+
     // 连接选关界面的选关信号，显示游戏窗口并关闭选关界面
     QObject::connect(&msw, &MapSelectWindow::levelSelected, [&](int level) {
         plw = new PlayWindow(mapdataFilePath + QString::number(level) + ".mapdata");

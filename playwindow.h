@@ -17,6 +17,7 @@ class PlayWindow : public QWidget
 
 public:
     explicit PlayWindow(QString mapPath, QWidget *parent = nullptr);
+    explicit PlayWindow(MapData *md, QWidget *parent = nullptr);
     ~PlayWindow();
     void setMapPath(QString mapPath); // 设置地图地址
     // 非递归深度优先搜索实现寻路，如果有通路，返回true

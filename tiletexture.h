@@ -22,8 +22,8 @@ public:
     void setSize(int Size);
     void changeStatus(); // 循环切换
     void changeStatus(TileStatus status); // 指定状态
-private:
     TileStatus status; // 当前状态
+private:
     std::map<TileStatus, QString> statusToPath; // 状态到路径的映射
 };
 

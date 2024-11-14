@@ -87,6 +87,67 @@ PlayWindow::PlayWindow(QString mapPath, QWidget *parent)
     });
 }
 
+PlayWindow::PlayWindow(MapData *md, QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::PlayWindow)
+{
+    ui->setupUi(this);
+    this->mapData = md;
+    ImgButton *autoFoundWay = new ImgButton(":/res/autoBt.png", ":/res/ButtonSound.wav");
+    autoFoundWay->setParent(this);
+    autoFoundWay->move(640, this->height()*0.56);
+    autoFoundWay->show();
+
+    if (!mapData) return;
+    int tempSize = this->mapData->getMapSize();
+
+    //设置StrongFocus才能监听键盘事件
+    setFocusPolicy(Qt::StrongFocus);
+
+    // 地图贴图绘制
+    if(tempSize > 0){
+        // 创建TileTexture对象并添加到窗口
+        for (int i = 0; i < tempSize; ++i) {
+            for (int j = 0; j < tempSize; ++j) {
+                TileStatus status;
+                if (this->mapData->mazeMap[i][j] == 0) {
+                    status = WALL; // 0表示墙
+                } else if (this->mapData->mazeMap[i][j] == 1) {
+                    status = PATH; // 1表示通路
+                } else if (this->mapData->mazeMap[i][j] == 2) {
+                    status = STARTING; // 2表示起始点
+                    this->startX = i;
+                    this->startY = j;
+                    this->posX = i;
+                    this->posY = j;
+                } else {
+                    status = ENDING; // 其他表示目的地
+                    this->endX = i;
+                    this->endY = j;
+                }
+
+                // 创建TileTexture对象
+                TileTexture *tile = new TileTexture(status);
+                tile->setParent(this); // 设置父对象
+                tile->setSize(600 / tempSize);
+                tile->move(j * (600 / tempSize), i * (600 / tempSize)); // 设置位置
+                tiles[i][j] = tile;
+                tile->lower();
+                tile->show(); // 显示瓷砖
+            }
+        }
+    }
+
+    // 自动寻路按钮动画及逻辑实现
+    connect(autoFoundWay, &ImgButton::clicked, [=](){
+        //按钮弹跳
+        autoFoundWay->buttonDown();
+        autoFoundWay->buttonUp();
+        findWay(true);
+    });
+}
+
+
 PlayWindow::~PlayWindow()
 {
     delete ui;

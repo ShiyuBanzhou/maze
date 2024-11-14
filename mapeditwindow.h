@@ -1,6 +1,7 @@
 #ifndef MAPEDITWINDOW_H
 #define MAPEDITWINDOW_H
 
+#include "mapdata.h"
 #include "qvalidator.h"
 #include "tiletexture.h"
 
@@ -22,12 +23,15 @@ public:
 
 private:
     Ui::MapEditWindow *ui;
+    QVector<QVector<int>> mp;
     TileTexture * tiles[31][31]; //图块
     int tempSize = 15; //迷宫宽度（大小），默认15
     void createTileTexture(); // 在窗口加载地图图块
     QVector<QVector<int> > createMaze(); //利用DFS随机生成迷宫地图
+    MapData *md;
 signals:
     void backBtnClicked();
+    void randomMap(MapData *md);
 };
 
 // 自定义奇数验证器
