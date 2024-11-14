@@ -6,13 +6,15 @@ MazeGenerator::MazeGenerator(int size)
     this->size = size;
     // 生成地图存取
     this->mazeMap = createMaze();
+    // 生成随机起点和终点
+    generateStartAndEndPoints();
 }
 
 // 地图生成
-QVector<QVector<int> > MazeGenerator::createMaze()
+QVector<QVector<int>> MazeGenerator::createMaze()
 {
     // 初始化地图节点全0
-    QVector<QVector<int>>mp(size, QVector<int>(size, 0));
+    QVector<QVector<int>> mp(size, QVector<int>(size, 0));
     // 随机种子
     QRandomGenerator *generator = QRandomGenerator::global();
 
@@ -26,7 +28,7 @@ QVector<QVector<int> > MazeGenerator::createMaze()
     QStack<QPair<int, int>> st; // 用于路径回溯
     st.push(QPair<int, int>(startX, startY));
 
-    bool isNotConnected = true; //是否不连通
+    bool isNotConnected = true; // 是否不连通
 
     while(isNotConnected && !st.isEmpty()){
         // 当前查询节点坐标
@@ -41,7 +43,7 @@ QVector<QVector<int> > MazeGenerator::createMaze()
             // 设置随机方向
             int direction = generator->bounded(neighbors.size());
             // 选择下一个联通方向
-            QPair<int, int>nextPoint = neighbors[direction];
+            QPair<int, int> nextPoint = neighbors[direction];
 
             // 打通当前查询节点与下一个节点直接的墙壁
             breakWall(mp, x, y, nextPoint.first, nextPoint.second);
@@ -50,16 +52,12 @@ QVector<QVector<int> > MazeGenerator::createMaze()
             mp[nextPoint.first][nextPoint.second] = 1;
             st.push(nextPoint);
         }
+
         // 检查地图的连通性：如果所有奇数行和奇数列的单元格都是路径（1），则地图连通；否则，不连通。
         int tempx = 0;
         isNotConnected = false;
         for(QVector<int> y : mp)
         {
-            /*
-             * tempx 表征第几行
-             * tempy 表征第几列
-             * x 表征元素属性（墙or路）
-            */
             int tempy;
             if(tempx % 2 == 1) // 奇数行索引
             {
@@ -83,31 +81,58 @@ QVector<QVector<int> > MazeGenerator::createMaze()
     return mp;
 }
 
+// 生成随机起点和终点
+void MazeGenerator::generateStartAndEndPoints()
+{
+    QRandomGenerator *generator = QRandomGenerator::global();
+
+    // 随机起点（已经在创建迷宫时生成）
+    startPoint = QPair<int, int>(1, 1); // 起点可以是固定值，也可以从生成的路径中选择
+
+    // 生成随机终点，确保终点与起点有足够的距离
+    int endX, endY;
+    const int MIN_DISTANCE = 10; // 起点和终点的最小曼哈顿距离
+
+    // 如果迷宫尺寸非常小，放宽曼哈顿距离限制
+    int maxDistance = (size < 5) ? 1 : MIN_DISTANCE;
+
+    do {
+        endX = (generator->bounded((size - 1) / 2)) * 2 + 1; // 随机选择奇数行
+        endY = (generator->bounded((size - 1) / 2)) * 2 + 1; // 随机选择奇数列
+    } while (size > 3 && distance(startPoint.first, startPoint.second, endX, endY) < maxDistance); // 确保距离足够大
+
+    endPoint = QPair<int, int>(endX, endY);
+    mazeMap[startPoint.first][startPoint.second] = 2;
+    mazeMap[endPoint.first][endPoint.second] = 3;
+}
+
+// 获取起点和终点之间的曼哈顿距离
+int MazeGenerator::distance(int x1, int y1, int x2, int y2)
+{
+    return qAbs(x1 - x2) + qAbs(y1 - y2); // 曼哈顿距离
+}
+
 // 获取地图信息
-QVector<QVector<int> > MazeGenerator::getMazeMap()
+QVector<QVector<int>> MazeGenerator::getMazeMap()
 {
     return this->mazeMap;
 }
 
-QPair<int, int> MazeGenerator::getEndPoint()
-{
-    return this->endPoint;
-}
-
-// 获取起始点
+// 获取起点
 QPair<int, int> MazeGenerator::getStartPoint()
 {
     return this->startPoint;
 }
 
-// 获取当前查询节点有效邻居集合
-QVector<QPair<int, int> > MazeGenerator::getValidNeighbors(const QVector<QVector<int> > &mp, int x, int y)
+// 获取终点
+QPair<int, int> MazeGenerator::getEndPoint()
 {
-    /*
-     *符合要求的邻居：
-     *1. 以2为步长检索当前查询节点（上下左右）四个方向的节点
-     *2. 如果被访问节点的四周都是墙，则该节点复合要求，插入到邻居集合中
-    */
+    return this->endPoint;
+}
+
+// 获取当前查询节点有效邻居集合
+QVector<QPair<int, int>> MazeGenerator::getValidNeighbors(const QVector<QVector<int>>& mp, int x, int y)
+{
     QVector<QPair<int, int>> neighbors;
 
     // 边界检测及条件判断
@@ -128,7 +153,7 @@ QVector<QPair<int, int> > MazeGenerator::getValidNeighbors(const QVector<QVector
 }
 
 // 打破当前查询节点和随机选取邻居之间的墙壁
-void MazeGenerator::breakWall(QVector<QVector<int> > &mp, int x1, int y1, int x2, int y2)
+void MazeGenerator::breakWall(QVector<QVector<int>>& mp, int x1, int y1, int x2, int y2)
 {
     if (x2 == x1 - 2) {
         mp[x1 - 1][y1] = 1; // 打通上方的墙
@@ -142,7 +167,7 @@ void MazeGenerator::breakWall(QVector<QVector<int> > &mp, int x1, int y1, int x2
 }
 
 // 检查当前节点是否复合邻居的要求
-bool MazeGenerator::isSurroundingWalls(const QVector<QVector<int> > &mp, int x, int y)
+bool MazeGenerator::isSurroundingWalls(const QVector<QVector<int>>& mp, int x, int y)
 {
     // 检查上方
     if (mp[x - 1][y] != 0) return false;
@@ -153,6 +178,5 @@ bool MazeGenerator::isSurroundingWalls(const QVector<QVector<int> > &mp, int x, 
     // 检查右方
     if (mp[x][y + 1] != 0) return false;
 
-    // 如果所有检查都通过，则返回 true（周围都是墙）
     return true;
 }

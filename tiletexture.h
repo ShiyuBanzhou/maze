@@ -10,7 +10,8 @@ enum TileStatus {
     WALL = 0,   // 0:墙
     PATH,       // 1:路
     STARTING,   // 2:起点
-    ENDING,      // 3:终点
+    ENDING,     // 3:终点
+    TASK,       // 4:任务点
     TILE_STATUS_COUNT // 总状态数量
 };
 

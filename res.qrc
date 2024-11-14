@@ -41,5 +41,6 @@
         <file>res/minusBtn_2.png</file>
         <file>res/plusBtn_1.png</file>
         <file>res/plusBtn_2.png</file>
+        <file>res/end.png</file>
     </qresource>
 </RCC>

@@ -5,6 +5,7 @@
 #include "qstandardpaths.h"
 #include "ui_playwindow.h"
 #include "tiletexture.h"
+#include "mazegenerator.h"
 
 #include <QPainter>
 #include <QVector>
@@ -120,10 +121,12 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
                     this->startY = j;
                     this->posX = i;
                     this->posY = j;
-                } else {
-                    status = ENDING; // 其他表示目的地
+                } else if (this->mapData->mazeMap[i][j] == 3){
+                    status = ENDING; // 3表示目的地
                     this->endX = i;
                     this->endY = j;
+                } else {
+                    status = TASK;
                 }
 
                 // 创建TileTexture对象
@@ -202,6 +205,127 @@ bool PlayWindow::initializeMapFile()
         }
     }
     return true; // 成功初始化地图信息文件
+}
+
+void PlayWindow::clearCurrentMaze() {
+    // 删除之前的迷宫贴图
+    for (int i = 0; i < mapData->getMapSize(); ++i) {
+        for (int j = 0; j < mapData->getMapSize(); ++j) {
+            if (tiles[i][j]) {
+                delete tiles[i][j];  // 删除单元格
+                tiles[i][j] = nullptr;  // 清空指针
+            }
+        }
+    }
+}
+
+
+// 生成任务迷宫
+void PlayWindow::generateTaskMaze() {
+    MazeGenerator *taskGen = new MazeGenerator(this->mapData->getMapSize());
+    taskMaze = taskGen->getMazeMap();
+    int tempMap[31][31];
+    for(int i = 0; i < this->mapData->getMapSize(); i++){
+        for(int j = 0; j < this->mapData->getMapSize(); j++){
+            tempMap[i][j] = taskMaze[i][j];
+        }
+    }
+    taskMapData = new MapData(this->mapData->getMapSize(), tempMap);
+    delete taskGen;
+}
+
+// 返回上一个迷宫
+void PlayWindow::returnToPreviousMaze() {
+    if (!mazeStack.isEmpty()) {
+        taskMaze = mazeStack.pop();  // 弹出栈顶的任务迷宫
+
+        // 显示恢复的迷宫
+        int taskSize = taskMaze.size();
+        if (taskSize > 0) {
+            for (int i = 0; i < taskSize; ++i) {
+                for (int j = 0; j < taskSize; ++j) {
+                    TileStatus status;
+                    if (taskMaze[i][j] == 0) {
+                        status = WALL;
+                    } else if (taskMaze[i][j] == 1) {
+                        status = PATH;
+                    } else if (taskMaze[i][j] == 2) {
+                        status = STARTING;
+                        this->posX = i;
+                        this->posY = j;
+                    } else {
+                        status = ENDING;
+                    }
+
+                    TileTexture *tile = new TileTexture(status);
+                    tile->setParent(this);
+                    tile->setSize(600 / taskSize);
+                    tile->move(j * (600 / taskSize), i * (600 / taskSize));
+                    tiles[i][j] = tile;
+                    tile->lower();
+                    tile->show();
+                }
+            }
+        }
+    }
+}
+
+// 保存当前迷宫的信息到栈
+void PlayWindow::saveCurrentMaze() {
+    int mapSize = mapData->getMapSize();
+    currentMaze.clear();
+    for (int i = 0; i < mapSize; ++i) {
+        QVector<int> row;
+        for (int j = 0; j < mapSize; ++j) {
+            row.append(mapData->mazeMap[i][j]);
+        }
+        currentMaze.append(row);
+    }
+
+    mazeStack.push(currentMaze);  // 将当前迷宫保存到栈中
+}
+
+// 进入任务迷宫
+void PlayWindow::enterTaskMaze()
+{
+    this->inTaskMaze = true;
+    // 清空当前迷宫的状态
+    clearCurrentMaze();
+
+    // 保存当前迷宫信息到栈中
+    saveCurrentMaze();
+
+    // 生成新的任务迷宫
+    generateTaskMaze();
+
+    // 显示任务迷宫
+    int taskSize = taskMaze.size();
+    if (taskSize > 0) {
+        for (int i = 0; i < taskSize; ++i) {
+            for (int j = 0; j < taskSize; ++j) {
+                TileStatus status;
+                if (taskMaze[i][j] == 0) {
+                    status = WALL;
+                } else if (taskMaze[i][j] == 1) {
+                    status = PATH;
+                } else if (taskMaze[i][j] == 2) {
+                    status = STARTING;
+                    this->posX = i;
+                    this->posY = j;
+                } else {
+                    status = ENDING;
+                }
+
+                TileTexture *tile = new TileTexture(status);
+                tile->setParent(this);
+                tile->setSize(600 / taskSize);
+                tile->move(j * (600 / taskSize), i * (600 / taskSize));
+                tiles[i][j] = tile;
+                tile->lower();
+                tile->show();
+            }
+        }
+    }
 }
 
 // 非递归深度优先搜索实现寻路
@@ -288,51 +412,106 @@ bool PlayWindow::findWay(bool drawPath)
 //监听键盘事件，实现移动
 void PlayWindow::keyPressEvent(QKeyEvent *e)
 {
-    // 按 W，向上移动
-    if(e->key() == Qt::Key_W && posX > 0 && mapData->mazeMap[posX-1][posY] > 0)
-    {
-        tiles[posX][posY]->changeStatus(PATH);
-        posX--; // 减少 X 坐标
-        tiles[posX][posY]->changeStatus(STARTING);
-        if(mapData->mazeMap[posX][posY] == ENDING){
-            // 游戏结束
-            // qDebug() << "end";
+    if (!inTaskMaze) {
+        // 按 W，向上移动
+        if(e->key() == Qt::Key_W && posX > 0 && mapData->mazeMap[posX-1][posY] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posX--; // 减少 X 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
+            if(mapData->mazeMap[posX][posY] == TASK){
+                enterTaskMaze();  // 进入任务迷宫
+            }
         }
-    }
 
-    // 按 S，向下移动
-    if(e->key() == Qt::Key_S && posX < mapData->getMapSize() - 1 && mapData->mazeMap[posX+1][posY] > 0)
-    {
-        tiles[posX][posY]->changeStatus(PATH);
-        posX++; // 增加 X 坐标
-        tiles[posX][posY]->changeStatus(STARTING);
-        if(mapData->mazeMap[posX][posY] == ENDING){
-            // 游戏结束
-            // qDebug() << "end";
+        // 按 S，向下移动
+        if(e->key() == Qt::Key_S && posX < mapData->getMapSize() - 1 && mapData->mazeMap[posX+1][posY] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posX++; // 增加 X 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
+            if(mapData->mazeMap[posX][posY] == TASK){
+                enterTaskMaze();  // 进入任务迷宫
+            }
         }
-    }
 
-    // 按 A，向左移动
-    if(e->key() == Qt::Key_A && posY > 0 && mapData->mazeMap[posX][posY-1] > 0)
-    {
-        tiles[posX][posY]->changeStatus(PATH);
-        posY--; // 减少 Y 坐标
-        tiles[posX][posY]->changeStatus(STARTING);
-        if(mapData->mazeMap[posX][posY] == ENDING){
-            // 游戏结束
-            // qDebug() << "end";
+        // 按 A，向左移动
+        if(e->key() == Qt::Key_A && posY > 0 && mapData->mazeMap[posX][posY-1] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posY--; // 减少 Y 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
+            if(mapData->mazeMap[posX][posY] == TASK){
+                enterTaskMaze();  // 进入任务迷宫
+            }
         }
-    }
 
-    // 按 D，向右移动
-    if(e->key() == Qt::Key_D && posY < mapData->getMapSize() - 1 && mapData->mazeMap[posX][posY+1] > 0)
-    {
-        tiles[posX][posY]->changeStatus(PATH);
-        posY++; // 增加 Y 坐标
-        tiles[posX][posY]->changeStatus(STARTING);
-        if(mapData->mazeMap[posX][posY] == ENDING){
-            // 游戏结束
-            // qDebug() << "end";
+        // 按 D，向右移动
+        if(e->key() == Qt::Key_D && posY < mapData->getMapSize() - 1 && mapData->mazeMap[posX][posY+1] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posY++; // 增加 Y 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
+            if(mapData->mazeMap[posX][posY] == TASK){
+                enterTaskMaze();  // 进入任务迷宫
+            }
+        }
+    } else {
+        // 在任务迷宫中同样应用栈中的数据
+        // 按 W，向上移动
+        if(e->key() == Qt::Key_W && posX > 0 && taskMapData->mazeMap[posX-1][posY] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posX--; // 减少 X 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(taskMapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
+        }
+
+        // 按 S，向下移动
+        if(e->key() == Qt::Key_S && posX < taskMapData->getMapSize() - 1 && taskMapData->mazeMap[posX+1][posY] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posX++; // 增加 X 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(taskMapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
+        }
+
+        // 按 A，向左移动
+        if(e->key() == Qt::Key_A && posY > 0 && taskMapData->mazeMap[posX][posY-1] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posY--; // 减少 Y 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(taskMapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
+        }
+
+        // 按 D，向右移动
+        if(e->key() == Qt::Key_D && posY < taskMapData->getMapSize() - 1 && taskMapData->mazeMap[posX][posY+1] > 0)
+        {
+            tiles[posX][posY]->changeStatus(PATH);
+            posY++; // 增加 Y 坐标
+            tiles[posX][posY]->changeStatus(STARTING);
+            if(taskMapData->mazeMap[posX][posY] == ENDING){
+                // 游戏结束
+            }
         }
     }
 }

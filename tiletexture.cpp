@@ -6,7 +6,8 @@ TileTexture::TileTexture(TileStatus status)
     this->statusToPath[WALL] = QString(":/res/wall.png");
     this->statusToPath[PATH] = QString(":/res/road.png");
     this->statusToPath[STARTING] = QString(":/res/start.png");
-    this->statusToPath[ENDING] = QString(":/res/destination.png");
+    this->statusToPath[ENDING] = QString(":/res/end.png");
+    this->statusToPath[TASK] = QString(":/res/destination.png");
 
     // 加载贴图
     QPixmap pix;
