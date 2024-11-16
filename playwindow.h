@@ -50,14 +50,17 @@ private:
     */
     QVector<QVector<int>> currentMaze;  // 当前迷宫的二维数据结构
     QVector<QVector<int>> taskMaze;     // 任务迷宫的二维数据结构
-    QStack<QVector<QVector<int>>> mazeStack;  // 用于存储多层迷宫的栈
+    QVector<MapData*> mazeVector;  // 用于存储多层迷宫的栈
 
+    bool isStart = false;
+    int mapId = 0;
+    int mapNumbers = 0;
     void enterTaskMaze();  // 进入任务迷宫的函数
-    void saveCurrentMaze();  // 保存当前迷宫的函数
     void generateTaskMaze();  // 生成任务迷宫
-    void returnToPreviousMaze();  // 返回上一个迷宫
     void clearCurrentMaze();
     bool inTaskMaze = false;  // 标记是否在任务迷宫中
+    void askLastLevel(); // 询问用户是否进入上一关
+    void askNextLevel(); // 询问用户是否进入下一关
 };
 
 #endif // PLAYWINDOW_H

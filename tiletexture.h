@@ -11,7 +11,9 @@ enum TileStatus {
     PATH,       // 1:路
     STARTING,   // 2:起点
     ENDING,     // 3:终点
-    TASK,       // 4:任务点
+    TASK,       // 4:任务迷宫入口
+    STAR,       // 5:任务点
+    LASTLAYER,      // 6:上一层
     TILE_STATUS_COUNT // 总状态数量
 };
 

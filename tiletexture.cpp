@@ -1,13 +1,17 @@
 #include "tiletexture.h"
+#include "qrandom.h"
 
 TileTexture::TileTexture(TileStatus status)
 {
+    QRandomGenerator *generator = QRandomGenerator::global();
     this->status = status;
     this->statusToPath[WALL] = QString(":/res/wall.png");
     this->statusToPath[PATH] = QString(":/res/road.png");
     this->statusToPath[STARTING] = QString(":/res/start.png");
     this->statusToPath[ENDING] = QString(":/res/end.png");
     this->statusToPath[TASK] = QString(":/res/destination.png");
+    this->statusToPath[STAR] = QString(":/res/star") + QString::number(generator->bounded(1, 3)) + QString(".png");
+    this->statusToPath[LASTLAYER] = QString(":/res/lastLayer.png");
 
     // 加载贴图
     QPixmap pix;

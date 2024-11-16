@@ -193,6 +193,7 @@ QVector<QVector<int> > MapEditWindow::createMaze()
 {
     QVector<QVector<int>> mapEdit;
     MazeGenerator *mazeGenerator = new MazeGenerator(this->tempSize);
+    mazeGenerator->generateStartAndEndPoints();
     mapEdit = mazeGenerator->getMazeMap();
     return mapEdit;
 }

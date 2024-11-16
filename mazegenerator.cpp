@@ -1,13 +1,38 @@
 #include "mazegenerator.h"
 
+#include <QQueue>
+
 // 构造函数
 MazeGenerator::MazeGenerator(int size)
 {
     this->size = size;
     // 生成地图存取
     this->mazeMap = createMaze();
-    // 生成随机起点和终点
-    generateStartAndEndPoints();
+}
+
+// 生成任务点
+void MazeGenerator::generateTaskPoints()
+{
+    QRandomGenerator *generator = QRandomGenerator::global();
+    QVector<QPair<int, int>> validPoints;
+    int taskPointCount = generator->bounded(1, size / 3 + 1);  // 生成1到size/3之间的随机数;
+
+    // 遍历迷宫，寻找所有可达的奇数坐标点
+    for (int x = 1; x < size; x += 2) {
+        for (int y = 1; y < size; y += 2) {
+            if (mazeMap[x][y] == 1 && (x != startPoint.first || y != startPoint.second) && (x != endPoint.first || y != endPoint.second)) {
+                validPoints.append(QPair<int, int>(x, y));
+            }
+        }
+    }
+
+    // 随机选择任务点
+    for (int i = 0; i < taskPointCount && !validPoints.isEmpty(); ++i) {
+        int index = generator->bounded(validPoints.size());
+        QPair<int, int> taskPoint = validPoints[index];
+        mazeMap[taskPoint.first][taskPoint.second] = 5; // 用数字4标记任务点
+        validPoints.remove(index); // 移除已选择的任务点，避免重复
+    }
 }
 
 // 地图生成
@@ -81,28 +106,70 @@ QVector<QVector<int>> MazeGenerator::createMaze()
     return mp;
 }
 
-// 生成随机起点和终点
-void MazeGenerator::generateStartAndEndPoints()
+// 广度优先搜索（BFS），查找距离起点最远的点
+QPair<int, int> MazeGenerator::findFarthestPoint(const QVector<QVector<int>>& mp, QPair<int, int> start)
 {
-    QRandomGenerator *generator = QRandomGenerator::global();
+    int rows = mp.size();
+    int cols = mp[0].size();
 
+    // BFS 使用的队列，存储当前位置和当前距离
+    QQueue<QPair<QPair<int, int>, int>> queue;  // (坐标, 当前距离)
+
+    // 初始化访问数组，标记每个点是否访问过
+    QVector<QVector<bool>> visited(rows, QVector<bool>(cols, false));
+
+    // 起点入队
+    queue.enqueue(qMakePair(start, 0));  // 起点和初始距离0
+    visited[start.first][start.second] = true;
+
+    // 最远点和距离
+    QPair<int, int> farthestPoint = start;
+    int maxDistance = 0;
+
+    // BFS 遍历
+    QVector<QPair<int, int>> directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};  // 上下左右方向
+    while (!queue.isEmpty()) {
+        QPair<QPair<int, int>, int> current = queue.dequeue();
+        QPair<int, int> currentPos = current.first;
+        int currentDist = current.second;
+
+        // 如果当前点是路径且未被访问过
+        if (mp[currentPos.first][currentPos.second] == 1) {
+            // 更新最远点
+            if (currentDist > maxDistance) {
+                maxDistance = currentDist;
+                farthestPoint = currentPos;
+            }
+
+            // 遍历邻居
+            for (const auto& direction : directions) {
+                int newX = currentPos.first + direction.first;
+                int newY = currentPos.second + direction.second;
+
+                // 确保新位置在地图范围内且未被访问过
+                if (newX >= 0 && newX < rows && newY >= 0 && newY < cols &&
+                    !visited[newX][newY] && mp[newX][newY] == 1) {
+                    visited[newX][newY] = true;
+                    queue.enqueue(qMakePair(QPair<int, int>(newX, newY), currentDist + 1));
+                }
+            }
+        }
+    }
+
+    return farthestPoint;  // 返回最远的点
+}
+
+// 生成随机起点和终点
+void MazeGenerator::generateStartAndEndPoints(bool isTaskMaze)
+{
     // 随机起点（已经在创建迷宫时生成）
     startPoint = QPair<int, int>(1, 1); // 起点可以是固定值，也可以从生成的路径中选择
 
-    // 生成随机终点，确保终点与起点有足够的距离
-    int endX, endY;
-    const int MIN_DISTANCE = 10; // 起点和终点的最小曼哈顿距离
-
-    // 如果迷宫尺寸非常小，放宽曼哈顿距离限制
-    int maxDistance = (size < 5) ? 1 : MIN_DISTANCE;
-
-    do {
-        endX = (generator->bounded((size - 1) / 2)) * 2 + 1; // 随机选择奇数行
-        endY = (generator->bounded((size - 1) / 2)) * 2 + 1; // 随机选择奇数列
-    } while (size > 3 && distance(startPoint.first, startPoint.second, endX, endY) < maxDistance); // 确保距离足够大
-
-    endPoint = QPair<int, int>(endX, endY);
-    mazeMap[startPoint.first][startPoint.second] = 2;
+    // 使用BFS查找最远点作为终点
+    endPoint = findFarthestPoint(mazeMap, startPoint);
+    if(!isTaskMaze){
+        mazeMap[startPoint.first][startPoint.second] = 2;
+    }
     mazeMap[endPoint.first][endPoint.second] = 3;
 }
 

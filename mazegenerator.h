@@ -20,12 +20,14 @@ public:
     // 获取终点
     QPair<int, int> getEndPoint();
 
+    // 生成任务点
+    void generateTaskPoints();
+
+    // 生成起点和终点
+    void generateStartAndEndPoints(bool isTaskMaze = false);
 private:
     // 生成迷宫
     QVector<QVector<int>> createMaze();
-
-    // 生成起点和终点
-    void generateStartAndEndPoints();
 
     // 获取当前节点周围符合条件的邻居集合
     QVector<QPair<int, int>> getValidNeighbors(const QVector<QVector<int>>& mp, int x, int y);
@@ -43,6 +45,7 @@ private:
     QPair<int, int> startPoint; // 起点
     QPair<int, int> endPoint;   // 终点
     QVector<QVector<int>> mazeMap; // 迷宫地图
+    QPair<int, int> findFarthestPoint(const QVector<QVector<int>>& mp, QPair<int, int> start);
 };
 
 #endif // MAZEGENERATOR_H
