@@ -22,9 +22,15 @@ public:
     void saveMap(); // 保存地图
     int getMapSize(); // 获取地图尺寸
     void setMapPath(QString mapPath); // 设置地图路径
+    void setTaskPointCount(int taskPointCount);
+    int getTaskPointCount();
+    void setIsFinished(int isFinished);
+    int getIsFinished();
 
 private:
     int mapSize = 0; // 地图大小
+    int taskPointCount;
+    int isFinished = 0;
     QString mapPath; // 地图路径
 };
 

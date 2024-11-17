@@ -3,6 +3,7 @@
 
 #include <mapdata.h>
 #include "mapdata.h"
+#include "taskhandlerwindow.h"
 #include "tiletexture.h"
 
 #include <QWidget>
@@ -61,6 +62,7 @@ private:
     bool inTaskMaze = false;  // 标记是否在任务迷宫中
     void askLastLevel(); // 询问用户是否进入上一关
     void askNextLevel(); // 询问用户是否进入下一关
+    TaskHandlerWindow *thw;
 };
 
 #endif // PLAYWINDOW_H

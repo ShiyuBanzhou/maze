@@ -19,6 +19,7 @@ SOURCES += \
     mazegenerator.cpp \
     playwindow.cpp \
     registerloginwindow.cpp \
+    taskhandlerwindow.cpp \
     tiletexture.cpp \
     user.cpp
 
@@ -31,6 +32,7 @@ HEADERS += \
     mazegenerator.h \
     playwindow.h \
     registerloginwindow.h \
+    taskhandlerwindow.h \
     tiletexture.h \
     user.h
 
@@ -39,7 +41,8 @@ FORMS += \
     mapeditwindow.ui \
     mapselectwindow.ui \
     playwindow.ui \
-    registerloginwindow.ui
+    registerloginwindow.ui \
+    taskhandlerwindow.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

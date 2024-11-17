@@ -25,6 +25,9 @@ public:
 
     // 生成起点和终点
     void generateStartAndEndPoints(bool isTaskMaze = false);
+
+    // 获取任务点数量
+    int getTaskPointCount();
 private:
     // 生成迷宫
     QVector<QVector<int>> createMaze();
@@ -46,6 +49,7 @@ private:
     QPair<int, int> endPoint;   // 终点
     QVector<QVector<int>> mazeMap; // 迷宫地图
     QPair<int, int> findFarthestPoint(const QVector<QVector<int>>& mp, QPair<int, int> start);
+    int taskPointCount; // 任务点数量
 };
 
 #endif // MAZEGENERATOR_H

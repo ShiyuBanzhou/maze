@@ -94,3 +94,23 @@ void MapData::setMapPath(QString mapPath)
 {
     this->mapPath = mapPath;
 }
+
+void MapData::setTaskPointCount(int taskPointCount)
+{
+    this->taskPointCount = taskPointCount;
+}
+
+int MapData::getTaskPointCount()
+{
+    return this->taskPointCount;
+}
+
+void MapData::setIsFinished(int isFinished)
+{
+    this->isFinished = isFinished;
+}
+
+int MapData::getIsFinished()
+{
+    return this->isFinished;
+}

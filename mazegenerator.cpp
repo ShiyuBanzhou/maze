@@ -1,4 +1,5 @@
 #include "mazegenerator.h"
+#include "qdebug.h"
 
 #include <QQueue>
 
@@ -15,22 +16,21 @@ void MazeGenerator::generateTaskPoints()
 {
     QRandomGenerator *generator = QRandomGenerator::global();
     QVector<QPair<int, int>> validPoints;
-    int taskPointCount = generator->bounded(1, size / 3 + 1);  // 生成1到size/3之间的随机数;
-
+    taskPointCount = generator->bounded(1, size / 3 + 1);  // 生成1到size/3之间的随机数;
+    qDebug() << QString::number(taskPointCount);
     // 遍历迷宫，寻找所有可达的奇数坐标点
-    for (int x = 1; x < size; x += 2) {
-        for (int y = 1; y < size; y += 2) {
+    for (int x = 3; x < size; x += 2) {
+        for (int y = 3; y < size; y += 2) {
             if (mazeMap[x][y] == 1 && (x != startPoint.first || y != startPoint.second) && (x != endPoint.first || y != endPoint.second)) {
                 validPoints.append(QPair<int, int>(x, y));
             }
         }
     }
-
     // 随机选择任务点
     for (int i = 0; i < taskPointCount && !validPoints.isEmpty(); ++i) {
         int index = generator->bounded(validPoints.size());
         QPair<int, int> taskPoint = validPoints[index];
-        mazeMap[taskPoint.first][taskPoint.second] = 5; // 用数字4标记任务点
+        mazeMap[taskPoint.first][taskPoint.second] = 5; // 用数字5标记任务点
         validPoints.remove(index); // 移除已选择的任务点，避免重复
     }
 }
@@ -162,15 +162,38 @@ QPair<int, int> MazeGenerator::findFarthestPoint(const QVector<QVector<int>>& mp
 // 生成随机起点和终点
 void MazeGenerator::generateStartAndEndPoints(bool isTaskMaze)
 {
+    QRandomGenerator *generator = QRandomGenerator::global();
     // 随机起点（已经在创建迷宫时生成）
     startPoint = QPair<int, int>(1, 1); // 起点可以是固定值，也可以从生成的路径中选择
-
     // 使用BFS查找最远点作为终点
     endPoint = findFarthestPoint(mazeMap, startPoint);
     if(!isTaskMaze){
         mazeMap[startPoint.first][startPoint.second] = 2;
     }
     mazeMap[endPoint.first][endPoint.second] = 3;
+
+    // 随机选取一个有效的点作为任务迷宫入口
+    QVector<QPair<int, int>> validPoints;
+
+    // 遍历迷宫，寻找所有可达的奇数坐标点
+    for (int x = 1; x < size; x += 2) {
+        for (int y = 1; y < size; y += 2) {
+            if (mazeMap[x][y] == 1 && (x != startPoint.first || y != startPoint.second) && (x != endPoint.first || y != endPoint.second)) {
+                validPoints.append(QPair<int, int>(x, y));
+            }
+        }
+    }
+
+    if (!validPoints.isEmpty()) {
+        int index = generator->bounded(validPoints.size());
+        QPair<int, int> taskMazeEntrance = validPoints[index];
+        mazeMap[taskMazeEntrance.first][taskMazeEntrance.second] = 4;  // 用数字5标记任务迷宫的入口
+    }
+}
+
+int MazeGenerator::getTaskPointCount()
+{
+    return taskPointCount;
 }
 
 // 获取起点和终点之间的曼哈顿距离
