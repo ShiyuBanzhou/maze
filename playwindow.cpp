@@ -40,6 +40,7 @@ PlayWindow::PlayWindow(QString mapPath, QWidget *parent)
 
     // 读取地图
     this->setMapPath(mapPath);
+    mazeVector.append(mapData);
     if (!mapData) return;
     int tempSize = this->mapData->getMapSize();
 
@@ -100,7 +101,6 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
     autoFoundWay->setParent(this);
     autoFoundWay->move(640, this->height()*0.56);
     autoFoundWay->show();
-
     if (!mapData) return;
     int tempSize = this->mapData->getMapSize();
 
@@ -143,6 +143,27 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
         }
     }
 
+    // 初始化计时器
+    gameTimer = new QTimer(this);
+    connect(gameTimer, &QTimer::timeout, this, &PlayWindow::updateTimeDisplay);
+
+    // 初始化时间显示标签
+    timeLabel = new QLabel(this);
+    timeLabel->setText("Time: 00:00");
+    timeLabel->setGeometry(620, 30, 150, 30); // 设置时间显示的位置
+    timeLabel->setStyleSheet("font-size: 18px; color: white;");
+
+    // 设置游戏开始时间
+    elapsedTime = QTime(0, 0);
+
+    // 开始游戏计时
+    gameTimer->start(1000); // 每秒更新一次
+
+    levelLabel = new QLabel(this);
+    levelLabel->setText("第" + QString::number(mapId + 1) +"关");
+    levelLabel->setGeometry(620, 80, 150, 30);
+    levelLabel->setStyleSheet("font-size: 18px; color: white;");
+
     // 自动寻路按钮动画及逻辑实现
     connect(autoFoundWay, &ImgButton::clicked, [=](){
         //按钮弹跳
@@ -157,6 +178,18 @@ PlayWindow::~PlayWindow()
 {
     delete ui;
 }
+
+void PlayWindow::updateTimeDisplay()
+{
+    // 增加一秒钟
+    elapsedTime = elapsedTime.addSecs(1);
+
+    // 更新显示的文本
+    timeLabel->setText(QString("Time: %1:%2")
+                           .arg(elapsedTime.minute(), 2, 10, QChar('0'))
+                           .arg(elapsedTime.second(), 2, 10, QChar('0')));
+}
+
 
 void PlayWindow::askLastLevel()
 {
@@ -174,6 +207,9 @@ void PlayWindow::askLastLevel()
     isStart = false;
     // 判断用户选择的按钮
     if (msgBox.clickedButton() == lastButton) {
+        // 重置计时器
+        elapsedTime = QTime(0, 0);
+        timeLabel->setText("Time: 00:00");
         clearCurrentMaze();
         mapId--;
         this->mapData = mazeVector[mapId];
@@ -195,8 +231,11 @@ void PlayWindow::askLastLevel()
                     status = ENDING; // 3表示目的地
                     this->endX = i;
                     this->endY = j;
-                } else {
+                } else if (this->mapData->mazeMap[i][j] == 4){
                     status = TASK;
+                }
+                if(mapId != 0 && i == 1 && j == 1){
+                    status = LASTLAYER;
                 }
                 // 创建TileTexture对象
                 TileTexture *tile = new TileTexture(status);
@@ -213,6 +252,7 @@ void PlayWindow::askLastLevel()
     } else if (msgBox.clickedButton() == exitButton) {
 
     }
+    levelLabel->setText("第" + QString::number(mapId + 1) +"关");
 }
 
 void PlayWindow::askNextLevel()
@@ -228,11 +268,22 @@ void PlayWindow::askNextLevel()
 
     // 设置消息框为模态，确保在此消息框未关闭前用户不能操作其他界面
     msgBox.exec();
+    if(msgBox.clickedButton() == exitButton){
+        QMessageBox tempMsgBox;
+        tempMsgBox.setWindowTitle("通关");
+        tempMsgBox.setText("恭喜您已通关！");
+        tempMsgBox.exec();
+        gameTimer->stop(); // 停止计时器
+        QCoreApplication::quit();
+    }
     mapId++;
     if(mapId > mapNumbers){
         mapNumbers++;
         // 判断用户选择的按钮
         if (msgBox.clickedButton() == nextButton) {
+            // 重置计时器
+            elapsedTime = QTime(0, 0);
+            timeLabel->setText("Time: 00:00");
             clearCurrentMaze();
             int nextSize = mazeVector[mapNumbers-1]->getMapSize() + 2 <= 29
                             ?mazeVector[mapNumbers-1]->getMapSize() + 2
@@ -261,16 +312,16 @@ void PlayWindow::askNextLevel()
                         status = PATH; // 1表示通路
                     } else if (this->mapData->mazeMap[i][j] == 2) {
                         status = STARTING; // 2表示起始点
-                        this->posX = i;
-                        this->posY = j;
                     } else if (this->mapData->mazeMap[i][j] == 3){
                         status = ENDING; // 3表示目的地
                         this->endX = i;
                         this->endY = j;
-                    } else {
+                    } else if (this->mapData->mazeMap[i][j] == 4){
                         status = TASK;
                     }
-
+                    if(mapId != 0 && i == 1 && j == 1){
+                        status = LASTLAYER;
+                    }
                     // 创建TileTexture对象
                     TileTexture *tile = new TileTexture(status);
                     tile->setParent(this); // 设置父对象
@@ -280,9 +331,14 @@ void PlayWindow::askNextLevel()
                     tile->lower();
                     tile->show(); // 显示瓷砖
                 }
+                this->posX = startX;
+                this->posY = startY;
             }
         }
     }else{
+        // 重置计时器
+        elapsedTime = QTime(0, 0);
+        timeLabel->setText("Time: 00:00");
         this->mapData = mazeVector[mapId-1];
         clearCurrentMaze();
         this->mapData = mazeVector[mapId];
@@ -306,7 +362,9 @@ void PlayWindow::askNextLevel()
                 } else {
                     status = TASK;
                 }
-
+                if(mapId != 0 && i == 1 && j == 1){
+                    status = LASTLAYER;
+                }
                 // 创建TileTexture对象
                 TileTexture *tile = new TileTexture(status);
                 tile->setParent(this); // 设置父对象
@@ -317,7 +375,10 @@ void PlayWindow::askNextLevel()
                 tile->show(); // 显示瓷砖
             }
         }
+        this->posX = 1;
+        this->posY = 1;
     }
+    levelLabel->setText("第" + QString::number(mapId + 1) +"关");
 }
 
 // 延时
@@ -387,8 +448,8 @@ void PlayWindow::clearCurrentMaze() {
 // 生成任务迷宫
 void PlayWindow::generateTaskMaze() {
     MazeGenerator *taskGen = new MazeGenerator(this->mapData->getMapSize());
-    taskGen->generateTaskPoints();
     taskGen->generateStartAndEndPoints(true);
+    taskGen->generateTaskPoints();
     taskMaze = taskGen->getMazeMap();
     int tempMap[31][31];
     for(int i = 0; i < this->mapData->getMapSize(); i++){
@@ -402,6 +463,7 @@ void PlayWindow::generateTaskMaze() {
     this->startY = taskGen->getEndPoint().second;
     mazeVector.append(taskMapData);
     mapId++;
+    levelLabel->setText("任务" + QString::number(mapId - mapNumbers) + "关");
     this->mapData = mazeVector[mapId];
     delete taskGen;
 }
@@ -455,7 +517,7 @@ bool PlayWindow::findWay(bool drawPath)
 
     QStack<QPair<int, int>> possible_path; // 储存路线的栈
     QStack<QPair<int, int>> pos_stack; // 储存待遍历位置的栈，位置的最后一个总是最先遍历
-    pos_stack.push(QPair<int, int>(startX, startY)); // 加入起点
+    pos_stack.push(QPair<int, int>(posX, posY)); // 加入起点
 
     while(!pos_stack.empty())
     {
@@ -479,12 +541,22 @@ bool PlayWindow::findWay(bool drawPath)
                     // 自动寻路后逻辑
                     tiles[tx][ty]->changeStatus(STARTING);
                     tiles[lastx][lasty]->changeStatus(PATH);
+                    if(mapData->mazeMap[tx][ty] == ENDING){
+                        // 游戏结束
+                        askNextLevel();
+                    }
+                    if(mapData->mazeMap[tx][ty] == TASK){
+                        isStart = false;
+                        mapData->mazeMap[tx][ty] = STARTING;
+                        enterTaskMaze();  // 进入任务迷宫
+                        return true;
+                    }
                     lastx = tx;
                     lasty = ty;
                     repaint();
                     sleep(50);
                 }
-                tiles[startX][startY]->changeStatus(STARTING);
+                tiles[posX][posY]->changeStatus(STARTING);
                 tiles[endX][endY]->changeStatus(ENDING);
             }
             return true; // 找到路径
@@ -533,8 +605,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
 {
     this->mapData = mazeVector[mapId];
     if (!inTaskMaze) {
-        if(mapId != 0 && ((this->posX != startX || this->posY != startY) || !isStart)){
-            tiles[startX][startY]->changeStatus(LASTLAYER);
+        if(mapId != 0 && ((this->posX != 1 || this->posY != 1) || !isStart)){
+            tiles[1][1]->changeStatus(LASTLAYER);
         }
         mapData->mazeMap[startX][startY] = PATH;
         isStart = true;
@@ -549,8 +621,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             tiles[posX][posY]->changeStatus(STARTING);
             if(mapId != 0 &&
                 isStart == true
-                && posX == startX
-                && posY == startY){
+                && posX == 1
+                && posY == 1){
                 askLastLevel();
             }
             if(isStart == true && mapData->mazeMap[posX][posY] == ENDING){
@@ -572,8 +644,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             tiles[posX][posY]->changeStatus(STARTING);
             if(mapId != 0 &&
                 isStart == true
-                && posX == startX
-                && posY == startY){
+                && posX == 1
+                && posY == 1){
                 askLastLevel();
             }
             if(isStart == true && mapData->mazeMap[posX][posY] == ENDING){
@@ -595,8 +667,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             tiles[posX][posY]->changeStatus(STARTING);
             if(mapId != 0 &&
                 isStart == true
-                && posX == startX
-                && posY == startY){
+                && posX == 1
+                && posY == 1){
                 askLastLevel();
             }
             if(isStart == true && mapData->mazeMap[posX][posY] == ENDING){
@@ -618,8 +690,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             tiles[posX][posY]->changeStatus(STARTING);
             if(mapId != 0 &&
                 isStart == true
-                && posX == startX
-                && posY == startY){
+                && posX == 1
+                && posY == 1){
                 askLastLevel();
             }
             if(isStart == true && mapData->mazeMap[posX][posY] == ENDING){
@@ -662,6 +734,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                     mazeVector.removeLast();
                     clearCurrentMaze();
                     mapId--;
+                    levelLabel->setText("第" + QString::number(mapId + 1) + "关");
                     this->mapData = mazeVector[mapId];
                     // 创建TileTexture对象并添加到窗口
                     for (int i = 0; i < this->mapData->getMapSize(); ++i) {
@@ -675,6 +748,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                                 status = STARTING; // 2表示起始点
                                 this->posX = i;
                                 this->posY = j;
+                                this->mapData->mazeMap[i][j] = 1;
                             } else if (this->mapData->mazeMap[i][j] == 3){
                                 status = ENDING; // 3表示目的地
                                 this->endX = i;
@@ -682,7 +756,11 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                             } else {
                                 status = TASK;
                             }
-
+                            if(mapId != 0 && i == 1 && j == 1){
+                                status = LASTLAYER;
+                            }else if(mapId == 0 && i == 1 && j == 1){
+                                status = PATH;
+                            }
                             // 创建TileTexture对象
                             TileTexture *tile = new TileTexture(status);
                             tile->setParent(this); // 设置父对象
@@ -723,6 +801,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 mazeVector.removeLast();
                 clearCurrentMaze();
                 mapId--;
+                levelLabel->setText("第" + QString::number(mapId + 1) + "关");
                 this->mapData = mazeVector[mapId];
                 // 创建TileTexture对象并添加到窗口
                 for (int i = 0; i < this->mapData->getMapSize(); ++i) {
@@ -736,6 +815,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                             status = STARTING; // 2表示起始点
                             this->posX = i;
                             this->posY = j;
+                            this->mapData->mazeMap[i][j] = 1;
                         } else if (this->mapData->mazeMap[i][j] == 3){
                             status = ENDING; // 3表示目的地
                             this->endX = i;
@@ -743,7 +823,11 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                         } else {
                             status = TASK;
                         }
-
+                        if(mapId != 0 && i == 1 && j == 1){
+                            status = LASTLAYER;
+                        }else if(mapId == 0 && i == 1 && j == 1){
+                            status = PATH;
+                        }
                         // 创建TileTexture对象
                         TileTexture *tile = new TileTexture(status);
                         tile->setParent(this); // 设置父对象
@@ -783,6 +867,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 mazeVector.removeLast();
                 clearCurrentMaze();
                 mapId--;
+                levelLabel->setText("第" + QString::number(mapId + 1) + "关");
                 this->mapData = mazeVector[mapId];
                 // 创建TileTexture对象并添加到窗口
                 for (int i = 0; i < this->mapData->getMapSize(); ++i) {
@@ -796,6 +881,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                             status = STARTING; // 2表示起始点
                             this->posX = i;
                             this->posY = j;
+                            this->mapData->mazeMap[i][j] = 1;
                         } else if (this->mapData->mazeMap[i][j] == 3){
                             status = ENDING; // 3表示目的地
                             this->endX = i;
@@ -803,7 +889,11 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                         } else {
                             status = TASK;
                         }
-
+                        if(mapId != 0 && i == 1 && j == 1){
+                            status = LASTLAYER;
+                        }else if(mapId == 0 && i == 1 && j == 1){
+                            status = PATH;
+                        }
                         // 创建TileTexture对象
                         TileTexture *tile = new TileTexture(status);
                         tile->setParent(this); // 设置父对象
@@ -843,6 +933,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 mazeVector.removeLast();
                 clearCurrentMaze();
                 mapId--;
+                levelLabel->setText("第" + QString::number(mapId + 1) + "关");
                 this->mapData = mazeVector[mapId];
                 // 创建TileTexture对象并添加到窗口
                 for (int i = 0; i < this->mapData->getMapSize(); ++i) {
@@ -856,6 +947,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                             status = STARTING; // 2表示起始点
                             this->posX = i;
                             this->posY = j;
+                            this->mapData->mazeMap[i][j] = 1;
                         } else if (this->mapData->mazeMap[i][j] == 3){
                             status = ENDING; // 3表示目的地
                             this->endX = i;
@@ -863,7 +955,11 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                         } else {
                             status = TASK;
                         }
-
+                        if(mapId != 0 && i == 1 && j == 1){
+                            status = LASTLAYER;
+                        }else if(mapId == 0 && i == 1 && j == 1){
+                            status = PATH;
+                        }
                         // 创建TileTexture对象
                         TileTexture *tile = new TileTexture(status);
                         tile->setParent(this); // 设置父对象

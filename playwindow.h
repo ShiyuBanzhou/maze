@@ -3,6 +3,7 @@
 
 #include <mapdata.h>
 #include "mapdata.h"
+#include "qdatetime.h"
 #include "taskhandlerwindow.h"
 #include "tiletexture.h"
 
@@ -63,6 +64,13 @@ private:
     void askLastLevel(); // 询问用户是否进入上一关
     void askNextLevel(); // 询问用户是否进入下一关
     TaskHandlerWindow *thw;
+    // 计时
+    QTimer* gameTimer; // 游戏计时器
+    QLabel* timeLabel; // 显示时间的标签
+    QTime elapsedTime; // 记录用时
+    void updateTimeDisplay();
+    // 显示处于第几关
+    QLabel* levelLabel;
 };
 
 #endif // PLAYWINDOW_H

@@ -19,8 +19,8 @@ void MazeGenerator::generateTaskPoints()
     taskPointCount = generator->bounded(1, size / 3 + 1);  // 生成1到size/3之间的随机数;
     qDebug() << QString::number(taskPointCount);
     // 遍历迷宫，寻找所有可达的奇数坐标点
-    for (int x = 3; x < size; x += 2) {
-        for (int y = 3; y < size; y += 2) {
+    for (int x = 1; x < size; x += 2) {
+        for (int y = 1; y < size; y += 2) {
             if (mazeMap[x][y] == 1 && (x != startPoint.first || y != startPoint.second) && (x != endPoint.first || y != endPoint.second)) {
                 validPoints.append(QPair<int, int>(x, y));
             }
