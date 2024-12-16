@@ -14,6 +14,7 @@
 #include <QStack>
 #include <QMessageBox>
 #include <QTimer>
+#include <QQueue>
 
 PlayWindow::PlayWindow(QString mapPath, QWidget *parent)
     : QWidget(parent)
@@ -509,46 +510,56 @@ void PlayWindow::enterTaskMaze()
     }
 }
 
-// 非递归深度优先搜索实现寻路
+// BFS寻路
 bool PlayWindow::findWay(bool drawPath)
 {
-    //是否走过的标记
+    // 是否走过的标记
     bool gone_mark[31][31] = {{false}};
+    // 路径记录，保存每个点的前驱，用于重建路径
+    QMap<QPair<int, int>, QPair<int, int>> prev_map;
 
-    QStack<QPair<int, int>> possible_path; // 储存路线的栈
-    QStack<QPair<int, int>> pos_stack; // 储存待遍历位置的栈，位置的最后一个总是最先遍历
-    pos_stack.push(QPair<int, int>(posX, posY)); // 加入起点
+    QQueue<QPair<int, int>> queue; // BFS 队列
+    queue.enqueue(QPair<int, int>(posX, posY));
+    gone_mark[posX][posY] = true;
 
-    while(!pos_stack.empty())
+    while (!queue.isEmpty())
     {
-        int pos_x = pos_stack.top().first;
-        int pos_y = pos_stack.top().second;
-        possible_path.push(pos_stack.top());
+        int pos_x = queue.head().first;
+        int pos_y = queue.head().second;
+        queue.dequeue();
 
         // 终点出口
-        if(pos_x == endX && pos_y == endY)
+        if (pos_x == endX && pos_y == endY)
         {
-            // 处理路径显示
-            if (drawPath) {
-                int lastx = startX, lasty = startY;
+            if (drawPath)
+            {
                 QVector<QPair<int, int>> final_path;
-                while(!possible_path.isEmpty()){
-                    auto p = possible_path.pop();
-                    final_path.append(p);
+                QPair<int, int> current = QPair<int, int>(endX, endY);
+                while (current != QPair<int, int>(posX, posY))
+                {
+                    final_path.append(current);
+                    current = prev_map[current];
                 }
-                for(int i = final_path.size()-1; i >= 0; i--){
-                    int tx = final_path[i].first, ty = final_path[i].second;
-                    // 自动寻路后逻辑
+                final_path.append(QPair<int, int>(posX, posY));
+                std::reverse(final_path.begin(), final_path.end());
+
+                // 显示路径
+                int lastx = startX, lasty = startY;
+                for (const auto &p : final_path)
+                {
+                    int tx = p.first, ty = p.second;
                     tiles[tx][ty]->changeStatus(STARTING);
                     tiles[lastx][lasty]->changeStatus(PATH);
-                    if(mapData->mazeMap[tx][ty] == ENDING){
+                    if (mapData->mazeMap[tx][ty] == ENDING)
+                    {
                         // 游戏结束
                         askNextLevel();
                     }
-                    if(mapData->mazeMap[tx][ty] == TASK){
+                    if (mapData->mazeMap[tx][ty] == TASK)
+                    {
                         isStart = false;
                         mapData->mazeMap[tx][ty] = STARTING;
-                        enterTaskMaze();  // 进入任务迷宫
+                        enterTaskMaze(); // 进入任务迷宫
                         return true;
                     }
                     lastx = tx;
@@ -562,42 +573,31 @@ bool PlayWindow::findWay(bool drawPath)
             return true; // 找到路径
         }
 
-        //如果不是出口则标记走过
-        gone_mark[pos_x][pos_y] = true;
-
-        int wall_count=0 , gone_count=0;
-
-        // 探索顺序与MOVE_STRATEGY相反，因为最后入栈的最先遍历
-        for(int i=0; i<4; i++)
+        // 探索相邻节点
+        for (int i = 0; i < 4; i++)
         {
             int next_pos_x = pos_x + MOVE_STRATEGY[i][0];
             int next_pos_y = pos_y + MOVE_STRATEGY[i][1];
+
             // 是否撞墙或已走过
-            if(next_pos_x < 0 || next_pos_x >= mapData->getMapSize()
-            || next_pos_y < 0 || next_pos_y >= mapData->getMapSize()
-            || mapData->mazeMap[next_pos_x][next_pos_y] == WALL)
+            if (next_pos_x < 0 || next_pos_x >= mapData->getMapSize() ||
+                next_pos_y < 0 || next_pos_y >= mapData->getMapSize() ||
+                mapData->mazeMap[next_pos_x][next_pos_y] == WALL ||
+                gone_mark[next_pos_x][next_pos_y])
             {
-                wall_count++;
                 continue;
             }
-            if(gone_mark[next_pos_x][next_pos_y])
-            {
-                gone_count++;
-                continue;
-            }
-            pos_stack.push(QPair<int, int>(next_pos_x, next_pos_y));
-        }
-        if(wall_count + gone_count == 4)
-        {
-            pos_stack.pop();
-            possible_path.pop();
-            if(gone_count != 1)
-                possible_path.pop();
+
+            // 标记已访问，并记录前驱
+            gone_mark[next_pos_x][next_pos_y] = true;
+            prev_map[QPair<int, int>(next_pos_x, next_pos_y)] = QPair<int, int>(pos_x, pos_y);
+            queue.enqueue(QPair<int, int>(next_pos_x, next_pos_y));
         }
     }
-    if(drawPath)
-        QMessageBox::information(this,"提示","该迷宫没有通路");
-    return false;
+
+    if (drawPath)
+        QMessageBox::information(this, "提示", "该迷宫没有通路");
+    return false; // 没有找到路径
 }
 
 //监听键盘事件，实现移动
