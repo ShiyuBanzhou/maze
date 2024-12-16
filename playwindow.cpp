@@ -177,12 +177,105 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
             inTaskMaze = false;
         }
     });
+    initializeFogOfWar();
 }
 
 
 PlayWindow::~PlayWindow()
 {
     delete ui;
+}
+
+bool PlayWindow::isVisibleByRayCasting(int startX, int startY, int targetX, int targetY) {
+    int dx = abs(targetX - startX);
+    int dy = abs(targetY - startY);
+
+    int sx = (startX < targetX) ? 1 : -1;
+    int sy = (startY < targetY) ? 1 : -1;
+
+    int err = dx - dy;
+
+    int currentX = startX;
+    int currentY = startY;
+
+    while (currentX != targetX || currentY != targetY) {
+        // 如果经过墙壁，目标格子不可见
+        if (mapData->mazeMap[currentX][currentY] == WALL) {
+            return false;
+        }
+
+        int e2 = err * 2;
+        if (e2 > -dy) {
+            err -= dy;
+            currentX += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            currentY += sy;
+        }
+    }
+
+    return true; // 没有被墙壁阻挡
+}
+
+
+void PlayWindow::initializeFogOfWar() {
+    for (int x = 0; x < this->mapData->getMapSize(); x++) {
+        for (int y = 0; y < this->mapData->getMapSize(); y++) {
+            tiles[x][y]->setFog(true); // 设置所有格子为迷雾
+        }
+    }
+
+    updateFogOfWar(posX, posY); // 设置玩家初始位置的可见范围
+}
+
+void PlayWindow::updateFogOfWar(int centerX, int centerY) {
+    for (int x = 0; x < this->mapData->getMapSize(); x++) {
+        for (int y = 0; y < this->mapData->getMapSize(); y++) {
+            int distance = abs(x - centerX) + abs(y - centerY);
+
+            // 超出视野范围，保持迷雾
+            if (distance > visionRadius) {
+                tiles[x][y]->setFog(true);
+                continue;
+            }
+
+            // 使用光线投射判断可见性
+            if (isVisibleByRayCasting(centerX, centerY, x, y)) {
+                tiles[x][y]->setFog(false); // 可见
+            } else {
+                tiles[x][y]->setFog(true); // 被墙遮挡
+            }
+        }
+    }
+}
+
+void PlayWindow::updateFogOfWarOptimized(int oldX, int oldY, int newX, int newY) {
+    // 恢复旧位置附近的迷雾
+    for (int x = oldX - visionRadius; x <= oldX + visionRadius; x++) {
+        for (int y = oldY - visionRadius; y <= oldY + visionRadius; y++) {
+            if (x < 0 || x >= this->mapData->getMapSize() || y < 0 || y >= this->mapData->getMapSize()) continue;
+            tiles[x][y]->setFog(true);
+        }
+    }
+
+    // 更新新位置附近的可见范围
+    for (int x = newX - visionRadius; x <= newX + visionRadius; x++) {
+        for (int y = newY - visionRadius; y <= newY + visionRadius; y++) {
+            if (x < 0 || x >= this->mapData->getMapSize() || y < 0 || y >= this->mapData->getMapSize()) continue;
+
+            int distance = abs(x - newX) + abs(y - newY);
+
+            if (distance > visionRadius) {
+                continue;
+            }
+
+            // 使用光线投射判断可见性
+            if (isVisibleByRayCasting(newX, newY, x, y)) {
+                tiles[x][y]->setFog(false);
+            }
+        }
+    }
 }
 
 bool PlayWindow::multiTargetFindWay(bool drawPath)
@@ -335,6 +428,8 @@ void PlayWindow::drawPathOnMap(const QVector<QPair<int, int>> &path, bool isRetu
         }else{
             tiles[lastx][lasty]->changeStatus(RETURN);
         }
+        // 更新迷雾
+        updateFogOfWarOptimized(lastx, lasty, tx, ty);
         lastx = tx;
         lasty = ty;
         repaint();
@@ -409,6 +504,7 @@ void PlayWindow::returnToPreviousMaze()
         }
         delete temp;
     }
+    initializeFogOfWar();
 }
 
 void PlayWindow::updateTimeDisplay()
@@ -610,6 +706,7 @@ void PlayWindow::askNextLevel()
         this->posX = 1;
         this->posY = 1;
     }
+    initializeFogOfWar();
     levelLabel->setText("第" + QString::number(mapId + 1) +"关");
 }
 
@@ -739,6 +836,7 @@ void PlayWindow::enterTaskMaze()
             }
         }
     }
+    initializeFogOfWar();
 }
 
 // BFS寻路
@@ -782,6 +880,8 @@ bool PlayWindow::findWay(bool drawPath)
                     tiles[tx][ty]->changeStatus(STARTING);
                     if(lastx != startX || lasty != startY){
                         tiles[lastx][lasty]->changeStatus(ROAD);
+                        // 更新迷雾
+                        updateFogOfWarOptimized(lastx, lasty, tx, ty);
                     }else{
                         tiles[lastx][lasty]->changeStatus(PATH);
                     }
@@ -869,6 +969,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX+1, posY, posX, posY);
         }
 
         // 按 S，向下移动
@@ -892,6 +994,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX-1, posY, posX, posY);
         }
 
         // 按 A，向左移动
@@ -915,6 +1019,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX, posY+1, posX, posY);
         }
 
         // 按 D，向右移动
@@ -938,6 +1044,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX, posY-1, posX, posY);
         }
     } else {
         if(posX != startX || posY != startY){
@@ -1008,8 +1116,11 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                     }
                     inTaskMaze = false;
                     delete temp;
+                    initializeFogOfWar();
                 }
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX+1, posY, posX, posY);
         }
 
         // 按 S，向下移动
@@ -1075,7 +1186,10 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 }
                 inTaskMaze = false;
                 delete temp;
+                initializeFogOfWar();
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX-1, posY, posX, posY);
         }
 
         // 按 A，向左移动
@@ -1141,7 +1255,10 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 }
                 inTaskMaze = false;
                 delete temp;
+                initializeFogOfWar();
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX, posY+1, posX, posY);
         }
 
         // 按 D，向右移动
@@ -1207,7 +1324,10 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 }
                 inTaskMaze = false;
                 delete temp;
+                initializeFogOfWar();
             }
+            // 更新迷雾
+            updateFogOfWarOptimized(posX, posY-1, posX, posY);
         }
     }
 }

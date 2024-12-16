@@ -64,14 +64,15 @@ void TileTexture::setFog(bool fogged) {
     if (isFogged) {
         // 模糊效果
         QGraphicsBlurEffect *blurEffect = new QGraphicsBlurEffect(this);
-        blurEffect->setBlurRadius(8); // 设置模糊半径
+        blurEffect->setBlurRadius(10); // 设置模糊半径
         this->setGraphicsEffect(blurEffect);
 
-        // 添加半透明覆盖
-        this->setStyleSheet("background-color: rgba(0, 0, 0, 0.7);");
+        // 深色迷雾效果（更高的透明度和深灰色）
+        this->setStyleSheet("background-color: rgba(50, 50, 50, 1.0);");  // 增加透明度
     } else {
         // 清晰显示
         this->setGraphicsEffect(nullptr);
         this->setStyleSheet(""); // 清除样式
     }
 }
+

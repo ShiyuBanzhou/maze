@@ -84,6 +84,16 @@ private:
     void executeTaskAt(int x, int y);
     // 返回上一层迷宫函数
     void returnToPreviousMaze();
+    // 初始化战争迷雾
+    void initializeFogOfWar();
+    // 更新战争迷雾
+    void updateFogOfWar(int centerX, int centerY);
+
+    void updateFogOfWarOptimized(int oldX, int oldY, int newX, int newY);
+
+    int visionRadius = 3; // 可见范围
+
+    bool isVisibleByRayCasting(int startX, int startY, int targetX, int targetY);
 };
 
 #endif // PLAYWINDOW_H
