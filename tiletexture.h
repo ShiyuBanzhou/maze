@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QString>
 #include <map>
+#include <QGraphicsBlurEffect>
 
 // 枚举定义
 enum TileStatus {
@@ -14,7 +15,9 @@ enum TileStatus {
     TASK,       // 4:任务迷宫入口
     STAR,       // 5:任务点
     LASTLAYER,      // 6:上一层
-    TILE_STATUS_COUNT // 总状态数量
+    TILE_STATUS_COUNT, // 总状态数量
+    ROAD,
+    RETURN
 };
 
 class TileTexture : public QPushButton
@@ -26,8 +29,10 @@ public:
     void changeStatus(); // 循环切换
     void changeStatus(TileStatus status); // 指定状态
     TileStatus status; // 当前状态
+    void setFog(bool fogged);
 private:
     std::map<TileStatus, QString> statusToPath; // 状态到路径的映射
+    bool isFogged;
 };
 
 #endif // TILETEXTURE_H

@@ -24,6 +24,7 @@ public:
     ~PlayWindow();
     void setMapPath(QString mapPath); // 设置地图地址
     // 非递归深度优先搜索实现寻路，如果有通路，返回true
+    // BFS寻路
     bool findWay(bool drawPath); // 参数设置true，会绘制可行路线，否则不绘制
 
 protected:
@@ -71,6 +72,18 @@ private:
     void updateTimeDisplay();
     // 显示处于第几关
     QLabel* levelLabel;
+    // 多任务目标寻路
+    bool multiTargetFindWay(bool drawPath);
+    // 寻找最近任务点
+    QPair<int, int> findClosestPoint(QPair<int, int> start, QVector<QPair<int, int>> &targets);
+    // 从当前点寻找路径到目标点
+    bool findPathTo(QPair<int, int> start, QPair<int, int> target, bool drawPath, bool isReturnPath = false);
+    // 绘制路径
+    void drawPathOnMap(const QVector<QPair<int, int>> &path, bool isReturnPath);
+    // 执行任务函数
+    void executeTaskAt(int x, int y);
+    // 返回上一层迷宫函数
+    void returnToPreviousMaze();
 };
 
 #endif // PLAYWINDOW_H

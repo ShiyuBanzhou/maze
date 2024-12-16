@@ -12,6 +12,8 @@ TileTexture::TileTexture(TileStatus status)
     this->statusToPath[TASK] = QString(":/res/destination.png");
     this->statusToPath[STAR] = QString(":/res/star") + QString::number(generator->bounded(1, 3)) + QString(".png");
     this->statusToPath[LASTLAYER] = QString(":/res/lastLayer.png");
+    this->statusToPath[ROAD] = QString(":/res/path.png");
+    this->statusToPath[RETURN] = QString(":/res/return.png");
 
     // 加载贴图
     QPixmap pix;
@@ -54,4 +56,22 @@ void TileTexture::changeStatus(TileStatus status)
     QPixmap pix;
     pix.load(statusToPath[status]);
     setIcon(QIcon(pix));
+}
+
+void TileTexture::setFog(bool fogged) {
+    isFogged = fogged;
+
+    if (isFogged) {
+        // 模糊效果
+        QGraphicsBlurEffect *blurEffect = new QGraphicsBlurEffect(this);
+        blurEffect->setBlurRadius(8); // 设置模糊半径
+        this->setGraphicsEffect(blurEffect);
+
+        // 添加半透明覆盖
+        this->setStyleSheet("background-color: rgba(0, 0, 0, 0.7);");
+    } else {
+        // 清晰显示
+        this->setGraphicsEffect(nullptr);
+        this->setStyleSheet(""); // 清除样式
+    }
 }

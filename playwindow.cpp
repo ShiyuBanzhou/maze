@@ -170,7 +170,12 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
         //按钮弹跳
         autoFoundWay->buttonDown();
         autoFoundWay->buttonUp();
-        findWay(true);
+        if(!inTaskMaze){
+            findWay(true);
+        }else{
+            multiTargetFindWay(true);
+            inTaskMaze = false;
+        }
     });
 }
 
@@ -178,6 +183,232 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
 PlayWindow::~PlayWindow()
 {
     delete ui;
+}
+
+bool PlayWindow::multiTargetFindWay(bool drawPath)
+{
+    // 存储所有任务点的坐标
+    QVector<QPair<int, int>> taskPoints;
+    for (int x = 0; x < mapData->getMapSize(); x++) {
+        for (int y = 0; y < mapData->getMapSize(); y++) {
+            if (mapData->mazeMap[x][y] == STAR) { // STAR 为任务点的标志
+                taskPoints.append(QPair<int, int>(x, y));
+            }
+        }
+    }
+
+    // 当前起点
+    QPair<int, int> currentPos(posX, posY);
+
+    while (!taskPoints.isEmpty()) {
+        // 寻找最近的任务点
+        QPair<int, int> nextTaskPoint = findClosestPoint(currentPos, taskPoints);
+        if (!findPathTo(currentPos, nextTaskPoint, drawPath)) {
+            QMessageBox::information(this, "提示", "无法找到任务点路径");
+            return false; // 无法到达任务点
+        }
+        currentPos = nextTaskPoint;
+
+        // 执行任务逻辑
+        executeTaskAt(currentPos.first, currentPos.second);
+
+        // 从任务点集合中移除已完成的任务点
+        taskPoints.removeOne(currentPos);
+    }
+
+    // 返回入口
+    QPair<int, int> entrance(startX, startY);
+    if (!findPathTo(currentPos, entrance, drawPath, true)) {
+        QMessageBox::information(this, "提示", "无法返回入口");
+        return false; // 无法返回入口
+    }
+
+    // 执行返回上一层逻辑
+    returnToPreviousMaze();
+    return true;
+}
+
+// 找到最近的目标点（基于 BFS 计算最短路径距离）
+QPair<int, int> PlayWindow::findClosestPoint(QPair<int, int> start, QVector<QPair<int, int>> &targets)
+{
+    QQueue<QPair<int, int>> queue;
+    QMap<QPair<int, int>, int> distance;
+    QMap<QPair<int, int>, QPair<int, int>> prev_map;
+    queue.enqueue(start);
+    distance[start] = 0;
+
+    while (!queue.isEmpty()) {
+        QPair<int, int> current = queue.dequeue();
+        int currentDist = distance[current];
+
+        // 遍历四个方向
+        for (int i = 0; i < 4; i++) {
+            int nextX = current.first + MOVE_STRATEGY[i][0];
+            int nextY = current.second + MOVE_STRATEGY[i][1];
+            QPair<int, int> next(nextX, nextY);
+
+            if (nextX < 0 || nextX >= mapData->getMapSize() || nextY < 0 || nextY >= mapData->getMapSize()) {
+                continue; // 越界检查
+            }
+            if (mapData->mazeMap[nextX][nextY] == WALL || distance.contains(next)) {
+                continue; // 墙或已访问
+            }
+
+            distance[next] = currentDist + 1;
+            prev_map[next] = current;
+            queue.enqueue(next);
+        }
+    }
+
+    // 寻找距离最近的任务点
+    QPair<int, int> closestPoint = targets[0];
+    int minDist = INT_MAX;
+    for (const auto &target : targets) {
+        if (distance.contains(target) && distance[target] < minDist) {
+            minDist = distance[target];
+            closestPoint = target;
+        }
+    }
+    return closestPoint;
+}
+
+bool PlayWindow::findPathTo(QPair<int, int> start, QPair<int, int> target, bool drawPath, bool isReturnPath)
+{
+    QQueue<QPair<int, int>> queue;
+    QMap<QPair<int, int>, QPair<int, int>> prev_map;
+    QMap<QPair<int, int>, bool> visited;
+
+    queue.enqueue(start);
+    visited[start] = true;
+
+    while (!queue.isEmpty()) {
+        QPair<int, int> current = queue.dequeue();
+
+        if (current == target) {
+            // 构建路径
+            if (drawPath) {
+                QVector<QPair<int, int>> path;
+                QPair<int, int> p = current;
+                while (p != start) {
+                    path.append(p);
+                    p = prev_map[p];
+                }
+                path.append(start);
+                std::reverse(path.begin(), path.end());
+
+                // 绘制路径
+                drawPathOnMap(path, isReturnPath);
+            }
+            return true;
+        }
+
+        for (int i = 0; i < 4; i++) {
+            int nextX = current.first + MOVE_STRATEGY[i][0];
+            int nextY = current.second + MOVE_STRATEGY[i][1];
+            QPair<int, int> next(nextX, nextY);
+
+            if (nextX < 0 || nextX >= mapData->getMapSize() || nextY < 0 || nextY >= mapData->getMapSize()) {
+                continue; // 越界检查
+            }
+            if (mapData->mazeMap[nextX][nextY] == WALL || visited.contains(next)) {
+                continue; // 墙或已访问
+            }
+
+            visited[next] = true;
+            prev_map[next] = current;
+            queue.enqueue(next);
+        }
+    }
+    return false; // 无法找到路径
+}
+
+// 绘制路径
+void PlayWindow::drawPathOnMap(const QVector<QPair<int, int>> &path, bool isReturnPath)
+{
+     // 显示路径
+    int lastx = startX, lasty = startY;
+    for (const auto &p : path) {
+        int tx = p.first, ty = p.second;
+        tiles[tx][ty]->changeStatus(STARTING);
+        if(!isReturnPath){
+            tiles[lastx][lasty]->changeStatus(ROAD);
+        }else{
+            tiles[lastx][lasty]->changeStatus(RETURN);
+        }
+        lastx = tx;
+        lasty = ty;
+        repaint();
+        sleep(50);
+        tiles[startX][startY]->changeStatus(ENDING);
+    }
+}
+
+// 执行任务函数
+void PlayWindow::executeTaskAt(int x, int y)
+{
+    qDebug() << "Executing task at:" << x << "," << y;
+    thw = new TaskHandlerWindow();
+    thw->show();
+
+    // 阻塞逻辑，直到任务完成
+    QEventLoop loop;
+    QObject::connect(thw, &TaskHandlerWindow::correct, [&]() {
+        mapData->setIsFinished(mapData->getIsFinished() + 1);
+        thw->close();
+        thw = nullptr;
+        loop.quit(); // 退出事件循环
+    });
+    loop.exec(); // 开启事件循环，阻塞当前逻辑
+}
+
+// 返回上一层迷宫函数
+void PlayWindow::returnToPreviousMaze()
+{
+    qDebug() << "Returning to previous maze...";
+    if(mapData->getIsFinished() == mapData->getTaskPointCount()){
+        MapData *temp = mapData;
+        mazeVector.removeLast();
+        clearCurrentMaze();
+        mapId--;
+        levelLabel->setText("第" + QString::number(mapId + 1) + "关");
+        this->mapData = mazeVector[mapId];
+        // 创建TileTexture对象并添加到窗口
+        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                TileStatus status;
+                if (this->mapData->mazeMap[i][j] == 0) {
+                    status = WALL; // 0表示墙
+                } else if (this->mapData->mazeMap[i][j] == 1) {
+                    status = PATH; // 1表示通路
+                } else if (this->mapData->mazeMap[i][j] == 2) {
+                    status = STARTING; // 2表示起始点
+                    this->posX = i;
+                    this->posY = j;
+                    this->mapData->mazeMap[i][j] = 1;
+                } else if (this->mapData->mazeMap[i][j] == 3){
+                    status = ENDING; // 3表示目的地
+                    this->endX = i;
+                    this->endY = j;
+                } else {
+                    status = TASK;
+                }
+                if(mapId != 0 && i == 1 && j == 1){
+                    status = LASTLAYER;
+                }else if(mapId == 0 && i == 1 && j == 1){
+                    status = PATH;
+                }
+                // 创建TileTexture对象
+                TileTexture *tile = new TileTexture(status);
+                tile->setParent(this); // 设置父对象
+                tile->setSize(600 / this->mapData->getMapSize());
+                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
+                tiles[i][j] = tile;
+                tile->lower();
+                tile->show(); // 显示瓷砖
+            }
+        }
+        delete temp;
+    }
 }
 
 void PlayWindow::updateTimeDisplay()
@@ -549,7 +780,11 @@ bool PlayWindow::findWay(bool drawPath)
                 {
                     int tx = p.first, ty = p.second;
                     tiles[tx][ty]->changeStatus(STARTING);
-                    tiles[lastx][lasty]->changeStatus(PATH);
+                    if(lastx != startX || lasty != startY){
+                        tiles[lastx][lasty]->changeStatus(ROAD);
+                    }else{
+                        tiles[lastx][lasty]->changeStatus(PATH);
+                    }
                     if (mapData->mazeMap[tx][ty] == ENDING)
                     {
                         // 游戏结束

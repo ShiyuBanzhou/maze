@@ -70,7 +70,6 @@ void TaskHandlerWindow::onSubmitButtonClicked()
         resultLabel->repaint();
         // 启动一个定时器，在1秒后抛出信号
         // QTimer::singleShot(1000, this, &TaskHandlerWindow::generateNewTask);
-        qDebug() << "1";
         emit correct();
     } else {
         resultLabel->setText("Result: Incorrect! Try again.");

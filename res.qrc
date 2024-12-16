@@ -58,5 +58,7 @@
         <file>res/up1.png</file>
         <file>res/up2.png</file>
         <file>res/up3.png</file>
+        <file>res/path.png</file>
+        <file>res/return.png</file>
     </qresource>
 </RCC>
