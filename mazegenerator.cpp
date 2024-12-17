@@ -178,7 +178,10 @@ void MazeGenerator::generateStartAndEndPoints(bool isTaskMaze)
     // 遍历迷宫，寻找所有可达的奇数坐标点
     for (int x = 1; x < size; x += 2) {
         for (int y = 1; y < size; y += 2) {
-            if (mazeMap[x][y] == 1 && (x != startPoint.first || y != startPoint.second) && (x != endPoint.first || y != endPoint.second)) {
+            if (mazeMap[x][y] == 1
+                && (x != startPoint.first || y != startPoint.second)
+                && (x != endPoint.first || y != endPoint.second)\
+                && (mazeMap[x][y] != 5)) {
                 validPoints.append(QPair<int, int>(x, y));
             }
         }
@@ -187,7 +190,7 @@ void MazeGenerator::generateStartAndEndPoints(bool isTaskMaze)
     if (!validPoints.isEmpty()) {
         int index = generator->bounded(validPoints.size());
         QPair<int, int> taskMazeEntrance = validPoints[index];
-        mazeMap[taskMazeEntrance.first][taskMazeEntrance.second] = 4;  // 用数字5标记任务迷宫的入口
+        mazeMap[taskMazeEntrance.first][taskMazeEntrance.second] = 4;  // 用数字4标记任务迷宫的入口
     }
 }
 

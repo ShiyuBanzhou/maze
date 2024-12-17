@@ -26,6 +26,7 @@ public:
     int getTaskPointCount();
     void setIsFinished(int isFinished);
     int getIsFinished();
+    int startX, startY;
 
 private:
     int mapSize = 0; // 地图大小

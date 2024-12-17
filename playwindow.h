@@ -57,8 +57,9 @@ private:
 
     bool isStart = false;
     int mapId = 0;
+    int taskMap = 0;
     int mapNumbers = 0;
-    void enterTaskMaze();  // 进入任务迷宫的函数
+    bool enterTaskMaze();  // 进入任务迷宫的函数
     void generateTaskMaze();  // 生成任务迷宫
     void clearCurrentMaze();
     bool inTaskMaze = false;  // 标记是否在任务迷宫中
@@ -94,6 +95,8 @@ private:
     int visionRadius = 3; // 可见范围
 
     bool isVisibleByRayCasting(int startX, int startY, int targetX, int targetY);
+
+    void enterDeeperMaze(int taskX, int taskY);
 };
 
 #endif // PLAYWINDOW_H

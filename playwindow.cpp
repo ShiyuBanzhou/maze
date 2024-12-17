@@ -174,7 +174,6 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
             findWay(true);
         }else{
             multiTargetFindWay(true);
-            inTaskMaze = false;
         }
     });
     initializeFogOfWar();
@@ -226,7 +225,7 @@ void PlayWindow::initializeFogOfWar() {
         }
     }
 
-    updateFogOfWar(posX, posY); // 设置玩家初始位置的可见范围
+    // updateFogOfWar(posX, posY); // 设置玩家初始位置的可见范围
 }
 
 void PlayWindow::updateFogOfWar(int centerX, int centerY) {
@@ -278,6 +277,24 @@ void PlayWindow::updateFogOfWarOptimized(int oldX, int oldY, int newX, int newY)
     }
 }
 
+void PlayWindow::enterDeeperMaze(int taskX, int taskY)
+{
+    qDebug() << "Entering deeper maze from task point:" << taskX << taskY;
+
+    // 阻塞逻辑，直到任务完成
+    QEventLoop loop;
+    taskMap++;  // 增加任务层级
+    isStart = false;  // 停止当前迷宫的状态
+    mapData->mazeMap[taskX][taskY] = STARTING; // 更新当前任务点为起始点
+
+    // 执行进入任务迷宫的逻辑
+    if(enterTaskMaze()){  // 进入新迷宫
+        loop.quit();  // 任务完成后退出事件循环
+    }
+    // 阻塞直到任务完成
+    loop.exec();
+}
+
 bool PlayWindow::multiTargetFindWay(bool drawPath)
 {
     // 存储所有任务点的坐标
@@ -287,6 +304,10 @@ bool PlayWindow::multiTargetFindWay(bool drawPath)
             if (mapData->mazeMap[x][y] == STAR) { // STAR 为任务点的标志
                 taskPoints.append(QPair<int, int>(x, y));
             }
+            /*
+            if (mapData->mazeMap[x][y] == TASK) { // STAR 为任务点的标志
+                taskPoints.append(QPair<int, int>(x, y));
+            }*/
         }
     }
 
@@ -302,8 +323,14 @@ bool PlayWindow::multiTargetFindWay(bool drawPath)
         }
         currentPos = nextTaskPoint;
 
-        // 执行任务逻辑
-        executeTaskAt(currentPos.first, currentPos.second);
+        // 如果任务点是TASK点，进入更深层迷宫
+        if (mapData->mazeMap[currentPos.first][currentPos.second] == TASK) {
+            enterDeeperMaze(currentPos.first, currentPos.second);
+            return true; // 成功进入更深层迷宫后返回
+        }else{
+            // 执行任务逻辑
+            executeTaskAt(currentPos.first, currentPos.second);
+        }
 
         // 从任务点集合中移除已完成的任务点
         taskPoints.removeOne(currentPos);
@@ -460,13 +487,17 @@ void PlayWindow::executeTaskAt(int x, int y)
 void PlayWindow::returnToPreviousMaze()
 {
     qDebug() << "Returning to previous maze...";
-    if(mapData->getIsFinished() == mapData->getTaskPointCount()){
-        MapData *temp = mapData;
-        mazeVector.removeLast();
-        clearCurrentMaze();
-        mapId--;
+    MapData *temp = mapData;
+    mazeVector.removeLast();
+    clearCurrentMaze();
+    mapId--;
+    taskMap--;
+    qDebug() << taskMap;
+    this->mapData = mazeVector[mapId];
+    if(taskMap < 0){
         levelLabel->setText("第" + QString::number(mapId + 1) + "关");
-        this->mapData = mazeVector[mapId];
+        inTaskMaze = false;
+        taskMap = 0;
         // 创建TileTexture对象并添加到窗口
         for (int i = 0; i < this->mapData->getMapSize(); ++i) {
             for (int j = 0; j < this->mapData->getMapSize(); ++j) {
@@ -484,8 +515,10 @@ void PlayWindow::returnToPreviousMaze()
                     status = ENDING; // 3表示目的地
                     this->endX = i;
                     this->endY = j;
-                } else {
+                } else if (this->mapData->mazeMap[i][j] == 4){
                     status = TASK;
+                }else{
+                    status = STAR;
                 }
                 if(mapId != 0 && i == 1 && j == 1){
                     status = LASTLAYER;
@@ -503,9 +536,39 @@ void PlayWindow::returnToPreviousMaze()
             }
         }
         delete temp;
+        initializeFogOfWar();
+    }else{
+        levelLabel->setText("任务" + QString::number(mapId - mapNumbers) + "关");
+        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                TileStatus status;
+                if (this->mapData->mazeMap[i][j] == 0) {
+                    status = WALL;
+                } else if (this->mapData->mazeMap[i][j] == 1) {
+                    status = PATH;
+                } else if (this->mapData->mazeMap[i][j] == 2) {
+                    this->posX = i;
+                    this->posY = j;
+                    status = STARTING;
+                    this->mapData->mazeMap[i][j] = 1;
+                }else if (this->mapData->mazeMap[i][j] == 4){
+                    status = TASK;
+                }else if (this->mapData->mazeMap[i][j] == 5){
+                    status = STAR;
+                }
+                TileTexture *tile = new TileTexture(status);
+                tile->setParent(this);
+                tile->setSize(600 / this->mapData->getMapSize());
+                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize()));
+                tiles[i][j] = tile;
+                tile->lower();
+                tile->show();
+            }
+        }
+        initializeFogOfWar();
     }
-    initializeFogOfWar();
 }
+
 
 void PlayWindow::updateTimeDisplay()
 {
@@ -575,6 +638,7 @@ void PlayWindow::askLastLevel()
                 tile->show(); // 显示瓷砖
             }
         }
+        initializeFogOfWar();
         this->posX = this->endX;
         this->posY = this->endY;
     } else if (msgBox.clickedButton() == exitButton) {
@@ -794,11 +858,13 @@ void PlayWindow::generateTaskMaze() {
     mapId++;
     levelLabel->setText("任务" + QString::number(mapId - mapNumbers) + "关");
     this->mapData = mazeVector[mapId];
+    this->mapData->startX = startX;
+    this->mapData->startY = startY;
     delete taskGen;
 }
 
 // 进入任务迷宫
-void PlayWindow::enterTaskMaze()
+bool PlayWindow::enterTaskMaze()
 {
     this->inTaskMaze = true;
     // 清空当前迷宫的状态
@@ -822,7 +888,7 @@ void PlayWindow::enterTaskMaze()
                 } else if (taskMaze[i][j] == 3) {
                     status = STARTING;
                 }else if (taskMaze[i][j] == 4){
-                    status = PATH;
+                    status = TASK;
                 }else{
                     status = STAR;
                 }
@@ -837,6 +903,7 @@ void PlayWindow::enterTaskMaze()
         }
     }
     initializeFogOfWar();
+    return true;
 }
 
 // BFS寻路
@@ -965,6 +1032,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 askNextLevel();
             }
             if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
                 isStart = false;
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
@@ -990,6 +1058,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 askNextLevel();
             }
             if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
                 isStart = false;
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
@@ -1015,6 +1084,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 askNextLevel();
             }
             if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
                 isStart = false;
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
@@ -1040,6 +1110,7 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 askNextLevel();
             }
             if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
                 isStart = false;
                 mapData->mazeMap[posX][posY] = STARTING;
                 enterTaskMaze();  // 进入任务迷宫
@@ -1048,16 +1119,26 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             updateFogOfWarOptimized(posX, posY-1, posX, posY);
         }
     } else {
-        if(posX != startX || posY != startY){
-            tiles[startX][startY]->changeStatus(ENDING);
-        }
+        startX = this->mapData->startX;
+        startY = this->mapData->startY;
         // 在任务迷宫中同样应用栈中的数据
+        if(posX != this->mapData->startX || posY != this->mapData->startY){
+            tiles[this->mapData->startX][this->mapData->startY]->changeStatus(ENDING);
+            this->mapData->mazeMap[this->mapData->startX][this->mapData->startY] = ENDING;
+        }
         // 按 W，向上移动
         if(e->key() == Qt::Key_W && posX > 0 && mapData->mazeMap[posX-1][posY] > 0)
         {
             tiles[posX][posY]->changeStatus(PATH);
             posX--; // 减少 X 坐标
             tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
+                isStart = false;
+                mapData->mazeMap[posX][posY] = STARTING;
+                enterTaskMaze();  // 进入任务迷宫
+                return;
+            }
             if(mapData->mazeMap[posX][posY] == STAR){
                 mapData->mazeMap[posX][posY] = PATH;
                 thw = new TaskHandlerWindow();
@@ -1077,46 +1158,81 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                     mazeVector.removeLast();
                     clearCurrentMaze();
                     mapId--;
-                    levelLabel->setText("第" + QString::number(mapId + 1) + "关");
+                    taskMap--;
                     this->mapData = mazeVector[mapId];
-                    // 创建TileTexture对象并添加到窗口
-                    for (int i = 0; i < this->mapData->getMapSize(); ++i) {
-                        for (int j = 0; j < this->mapData->getMapSize(); ++j) {
-                            TileStatus status;
-                            if (this->mapData->mazeMap[i][j] == 0) {
-                                status = WALL; // 0表示墙
-                            } else if (this->mapData->mazeMap[i][j] == 1) {
-                                status = PATH; // 1表示通路
-                            } else if (this->mapData->mazeMap[i][j] == 2) {
-                                status = STARTING; // 2表示起始点
-                                this->posX = i;
-                                this->posY = j;
-                                this->mapData->mazeMap[i][j] = 1;
-                            } else if (this->mapData->mazeMap[i][j] == 3){
-                                status = ENDING; // 3表示目的地
-                                this->endX = i;
-                                this->endY = j;
-                            } else {
-                                status = TASK;
+                    if(taskMap <= 0){
+                        levelLabel->setText("第" + QString::number(mapId + 1) + "关");
+                        inTaskMaze = false;
+                        taskMap = 0;
+                        // 创建TileTexture对象并添加到窗口
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0) {
+                                    status = WALL; // 0表示墙
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH; // 1表示通路
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    status = STARTING; // 2表示起始点
+                                    this->posX = i;
+                                    this->posY = j;
+                                    this->mapData->mazeMap[i][j] = 1;
+                                } else if (this->mapData->mazeMap[i][j] == 3){
+                                    status = ENDING; // 3表示目的地
+                                    this->endX = i;
+                                    this->endY = j;
+                                } else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else{
+                                    status = STAR;
+                                }
+                                if(mapId != 0 && i == 1 && j == 1){
+                                    status = LASTLAYER;
+                                }else if(mapId == 0 && i == 1 && j == 1){
+                                    status = PATH;
+                                }
+                                // 创建TileTexture对象
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this); // 设置父对象
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show(); // 显示瓷砖
                             }
-                            if(mapId != 0 && i == 1 && j == 1){
-                                status = LASTLAYER;
-                            }else if(mapId == 0 && i == 1 && j == 1){
-                                status = PATH;
-                            }
-                            // 创建TileTexture对象
-                            TileTexture *tile = new TileTexture(status);
-                            tile->setParent(this); // 设置父对象
-                            tile->setSize(600 / this->mapData->getMapSize());
-                            tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
-                            tiles[i][j] = tile;
-                            tile->lower();
-                            tile->show(); // 显示瓷砖
                         }
+                        delete temp;
+                        initializeFogOfWar();
+                    }else{
+                        levelLabel->setText("任务" + QString::number(mapId - mapNumbers) + "关");
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0) {
+                                    status = WALL;
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH;
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    this->posX = i;
+                                    this->posY = j;
+                                    status = STARTING;
+                                    this->mapData->mazeMap[i][j] = 1;
+                                }else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else if (this->mapData->mazeMap[i][j] == 5){
+                                    status = STAR;
+                                }
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this);
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize()));
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show();
+                            }
+                        }
+                        initializeFogOfWar();
                     }
-                    inTaskMaze = false;
-                    delete temp;
-                    initializeFogOfWar();
                 }
             }
             // 更新迷雾
@@ -1129,6 +1245,13 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             tiles[posX][posY]->changeStatus(PATH);
             posX++; // 增加 X 坐标
             tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
+                isStart = false;
+                mapData->mazeMap[posX][posY] = STARTING;
+                enterTaskMaze();  // 进入任务迷宫
+                return;
+            }
             if(mapData->mazeMap[posX][posY] == STAR){
                 mapData->mazeMap[posX][posY] = PATH;
                 thw = new TaskHandlerWindow();
@@ -1143,50 +1266,86 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             // 游戏结束
             if(mapData->getIsFinished() == mapData->getTaskPointCount()
                 && mapData->mazeMap[posX][posY] == ENDING){
-                MapData *temp = mapData;
-                mazeVector.removeLast();
-                clearCurrentMaze();
-                mapId--;
-                levelLabel->setText("第" + QString::number(mapId + 1) + "关");
-                this->mapData = mazeVector[mapId];
-                // 创建TileTexture对象并添加到窗口
-                for (int i = 0; i < this->mapData->getMapSize(); ++i) {
-                    for (int j = 0; j < this->mapData->getMapSize(); ++j) {
-                        TileStatus status;
-                        if (this->mapData->mazeMap[i][j] == 0) {
-                            status = WALL; // 0表示墙
-                        } else if (this->mapData->mazeMap[i][j] == 1) {
-                            status = PATH; // 1表示通路
-                        } else if (this->mapData->mazeMap[i][j] == 2) {
-                            status = STARTING; // 2表示起始点
-                            this->posX = i;
-                            this->posY = j;
-                            this->mapData->mazeMap[i][j] = 1;
-                        } else if (this->mapData->mazeMap[i][j] == 3){
-                            status = ENDING; // 3表示目的地
-                            this->endX = i;
-                            this->endY = j;
-                        } else {
-                            status = TASK;
+                // 游戏结束
+                if(mapData->getIsFinished() == mapData->getTaskPointCount()){
+                    MapData *temp = mapData;
+                    mazeVector.removeLast();
+                    clearCurrentMaze();
+                    mapId--;
+                    taskMap--;
+                    this->mapData = mazeVector[mapId];
+                    if(taskMap <= 0){
+                        levelLabel->setText("第" + QString::number(mapId + 1) + "关");
+                        inTaskMaze = false;
+                        taskMap = 0;
+                        // 创建TileTexture对象并添加到窗口
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0) {
+                                    status = WALL; // 0表示墙
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH; // 1表示通路
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    status = STARTING; // 2表示起始点
+                                    this->mapData->mazeMap[i][j] = 1;
+                                } else if (this->mapData->mazeMap[i][j] == 3){
+                                    status = ENDING; // 3表示目的地
+                                    this->endX = i;
+                                    this->endY = j;
+                                } else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else{
+                                    status = STAR;
+                                }
+                                if(mapId != 0 && i == 1 && j == 1){
+                                    status = LASTLAYER;
+                                }else if(mapId == 0 && i == 1 && j == 1){
+                                    status = PATH;
+                                }
+                                // 创建TileTexture对象
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this); // 设置父对象
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show(); // 显示瓷砖
+                            }
                         }
-                        if(mapId != 0 && i == 1 && j == 1){
-                            status = LASTLAYER;
-                        }else if(mapId == 0 && i == 1 && j == 1){
-                            status = PATH;
+                        delete temp;
+                        initializeFogOfWar();
+                    }else{
+                        levelLabel->setText("任务" + QString::number(mapId - mapNumbers) + "关");
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0) {
+                                    status = WALL;
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH;
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    this->posX = i;
+                                    this->posY = j;
+                                    status = STARTING;
+                                    this->mapData->mazeMap[i][j] = 1;
+                                }else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else if (this->mapData->mazeMap[i][j] == 5){
+                                    status = STAR;
+                                }
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this);
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize()));
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show();
+                            }
                         }
-                        // 创建TileTexture对象
-                        TileTexture *tile = new TileTexture(status);
-                        tile->setParent(this); // 设置父对象
-                        tile->setSize(600 / this->mapData->getMapSize());
-                        tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
-                        tiles[i][j] = tile;
-                        tile->lower();
-                        tile->show(); // 显示瓷砖
+                        initializeFogOfWar();
                     }
                 }
-                inTaskMaze = false;
-                delete temp;
-                initializeFogOfWar();
             }
             // 更新迷雾
             updateFogOfWarOptimized(posX-1, posY, posX, posY);
@@ -1198,6 +1357,13 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             tiles[posX][posY]->changeStatus(PATH);
             posY--; // 减少 Y 坐标
             tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
+                isStart = false;
+                mapData->mazeMap[posX][posY] = STARTING;
+                enterTaskMaze();  // 进入任务迷宫
+                return;
+            }
             if(mapData->mazeMap[posX][posY] == STAR){
                 mapData->mazeMap[posX][posY] = PATH;
                 thw = new TaskHandlerWindow();
@@ -1212,61 +1378,106 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             // 游戏结束
             if(mapData->getIsFinished() == mapData->getTaskPointCount()
                 && mapData->mazeMap[posX][posY] == ENDING){
-                MapData *temp = mapData;
-                mazeVector.removeLast();
-                clearCurrentMaze();
-                mapId--;
-                levelLabel->setText("第" + QString::number(mapId + 1) + "关");
-                this->mapData = mazeVector[mapId];
-                // 创建TileTexture对象并添加到窗口
-                for (int i = 0; i < this->mapData->getMapSize(); ++i) {
-                    for (int j = 0; j < this->mapData->getMapSize(); ++j) {
-                        TileStatus status;
-                        if (this->mapData->mazeMap[i][j] == 0) {
-                            status = WALL; // 0表示墙
-                        } else if (this->mapData->mazeMap[i][j] == 1) {
-                            status = PATH; // 1表示通路
-                        } else if (this->mapData->mazeMap[i][j] == 2) {
-                            status = STARTING; // 2表示起始点
-                            this->posX = i;
-                            this->posY = j;
-                            this->mapData->mazeMap[i][j] = 1;
-                        } else if (this->mapData->mazeMap[i][j] == 3){
-                            status = ENDING; // 3表示目的地
-                            this->endX = i;
-                            this->endY = j;
-                        } else {
-                            status = TASK;
+                // 游戏结束
+                if(mapData->getIsFinished() == mapData->getTaskPointCount()){
+                    MapData *temp = mapData;
+                    mazeVector.removeLast();
+                    clearCurrentMaze();
+                    mapId--;
+                    taskMap--;
+                    this->mapData = mazeVector[mapId];
+                    if(taskMap <= 0){
+                        levelLabel->setText("第" + QString::number(mapId + 1) + "关");
+                        inTaskMaze = false;
+                        taskMap = 0;
+                        // 创建TileTexture对象并添加到窗口
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0 && (i != startX || j != startY)) {
+                                    status = WALL; // 0表示墙
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH; // 1表示通路
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    status = STARTING; // 2表示起始点
+                                    this->posX = i;
+                                    this->posY = j;
+                                    this->mapData->mazeMap[i][j] = 1;
+                                } else if (this->mapData->mazeMap[i][j] == 3){
+                                    status = ENDING; // 3表示目的地
+                                    this->endX = i;
+                                    this->endY = j;
+                                } else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else{
+                                    status = STAR;
+                                }
+                                if(mapId != 0 && i == 1 && j == 1){
+                                    status = LASTLAYER;
+                                }else if(mapId == 0 && i == 1 && j == 1){
+                                    status = PATH;
+                                }
+                                // 创建TileTexture对象
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this); // 设置父对象
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show(); // 显示瓷砖
+                            }
                         }
-                        if(mapId != 0 && i == 1 && j == 1){
-                            status = LASTLAYER;
-                        }else if(mapId == 0 && i == 1 && j == 1){
-                            status = PATH;
+                        delete temp;
+                        initializeFogOfWar();
+                    }else{
+                        levelLabel->setText("任务" + QString::number(mapId - mapNumbers) + "关");
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0) {
+                                    status = WALL;
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH;
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    this->posX = i;
+                                    this->posY = j;
+                                    status = STARTING;
+                                    this->mapData->mazeMap[i][j] = 1;
+                                }else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else if (this->mapData->mazeMap[i][j] == 5){
+                                    status = STAR;
+                                }
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this);
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize()));
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show();
+                            }
                         }
-                        // 创建TileTexture对象
-                        TileTexture *tile = new TileTexture(status);
-                        tile->setParent(this); // 设置父对象
-                        tile->setSize(600 / this->mapData->getMapSize());
-                        tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
-                        tiles[i][j] = tile;
-                        tile->lower();
-                        tile->show(); // 显示瓷砖
+                        initializeFogOfWar();
                     }
                 }
-                inTaskMaze = false;
-                delete temp;
-                initializeFogOfWar();
             }
             // 更新迷雾
             updateFogOfWarOptimized(posX, posY+1, posX, posY);
         }
 
         // 按 D，向右移动
-        if(e->key() == Qt::Key_D && posY < taskMapData->getMapSize() - 1 && taskMapData->mazeMap[posX][posY+1] > 0)
+        if(e->key() == Qt::Key_D && posY < mapData->getMapSize() - 1 && mapData->mazeMap[posX][posY+1] > 0)
         {
             tiles[posX][posY]->changeStatus(PATH);
             posY++; // 增加 Y 坐标
             tiles[posX][posY]->changeStatus(STARTING);
+            if(mapData->mazeMap[posX][posY] == TASK){
+                taskMap++;
+                isStart = false;
+                mapData->mazeMap[posX][posY] = STARTING;
+                enterTaskMaze();  // 进入任务迷宫
+                return;
+            }
             if(mapData->mazeMap[posX][posY] == STAR){
                 mapData->mazeMap[posX][posY] = PATH;
                 thw = new TaskHandlerWindow();
@@ -1281,50 +1492,88 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
             // 游戏结束
             if(mapData->getIsFinished() == mapData->getTaskPointCount()
                 && mapData->mazeMap[posX][posY] == ENDING){
-                MapData *temp = mapData;
-                mazeVector.removeLast();
-                clearCurrentMaze();
-                mapId--;
-                levelLabel->setText("第" + QString::number(mapId + 1) + "关");
-                this->mapData = mazeVector[mapId];
-                // 创建TileTexture对象并添加到窗口
-                for (int i = 0; i < this->mapData->getMapSize(); ++i) {
-                    for (int j = 0; j < this->mapData->getMapSize(); ++j) {
-                        TileStatus status;
-                        if (this->mapData->mazeMap[i][j] == 0) {
-                            status = WALL; // 0表示墙
-                        } else if (this->mapData->mazeMap[i][j] == 1) {
-                            status = PATH; // 1表示通路
-                        } else if (this->mapData->mazeMap[i][j] == 2) {
-                            status = STARTING; // 2表示起始点
-                            this->posX = i;
-                            this->posY = j;
-                            this->mapData->mazeMap[i][j] = 1;
-                        } else if (this->mapData->mazeMap[i][j] == 3){
-                            status = ENDING; // 3表示目的地
-                            this->endX = i;
-                            this->endY = j;
-                        } else {
-                            status = TASK;
+                // 游戏结束
+                if(mapData->getIsFinished() == mapData->getTaskPointCount()){
+                    MapData *temp = mapData;
+                    mazeVector.removeLast();
+                    clearCurrentMaze();
+                    mapId--;
+                    taskMap--;
+                    this->mapData = mazeVector[mapId];
+                    if(taskMap <= 0){
+                        levelLabel->setText("第" + QString::number(mapId + 1) + "关");
+                        inTaskMaze = false;
+                        taskMap = 0;
+                        // 创建TileTexture对象并添加到窗口
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0) {
+                                    status = WALL; // 0表示墙
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH; // 1表示通路
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    status = STARTING; // 2表示起始点
+                                    this->posX = i;
+                                    this->posY = j;
+                                    this->mapData->mazeMap[i][j] = 1;
+                                } else if (this->mapData->mazeMap[i][j] == 3){
+                                    status = ENDING; // 3表示目的地
+                                    this->endX = i;
+                                    this->endY = j;
+                                } else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else{
+                                    status = STAR;
+                                }
+                                if(mapId != 0 && i == 1 && j == 1){
+                                    status = LASTLAYER;
+                                }else if(mapId == 0 && i == 1 && j == 1){
+                                    status = PATH;
+                                }
+                                // 创建TileTexture对象
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this); // 设置父对象
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show(); // 显示瓷砖
+                            }
                         }
-                        if(mapId != 0 && i == 1 && j == 1){
-                            status = LASTLAYER;
-                        }else if(mapId == 0 && i == 1 && j == 1){
-                            status = PATH;
+                        delete temp;
+                        initializeFogOfWar();
+                    }else{
+                        levelLabel->setText("任务" + QString::number(mapId - mapNumbers) + "关");
+                        for (int i = 0; i < this->mapData->getMapSize(); ++i) {
+                            for (int j = 0; j < this->mapData->getMapSize(); ++j) {
+                                TileStatus status;
+                                if (this->mapData->mazeMap[i][j] == 0) {
+                                    status = WALL;
+                                } else if (this->mapData->mazeMap[i][j] == 1) {
+                                    status = PATH;
+                                } else if (this->mapData->mazeMap[i][j] == 2) {
+                                    this->posX = i;
+                                    this->posY = j;
+                                    status = STARTING;
+                                    this->mapData->mazeMap[i][j] = 1;
+                                }else if (this->mapData->mazeMap[i][j] == 4){
+                                    status = TASK;
+                                }else if (this->mapData->mazeMap[i][j] == 5){
+                                    status = STAR;
+                                }
+                                TileTexture *tile = new TileTexture(status);
+                                tile->setParent(this);
+                                tile->setSize(600 / this->mapData->getMapSize());
+                                tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize()));
+                                tiles[i][j] = tile;
+                                tile->lower();
+                                tile->show();
+                            }
                         }
-                        // 创建TileTexture对象
-                        TileTexture *tile = new TileTexture(status);
-                        tile->setParent(this); // 设置父对象
-                        tile->setSize(600 / this->mapData->getMapSize());
-                        tile->move(j * (600 / this->mapData->getMapSize()), i * (600 / this->mapData->getMapSize())); // 设置位置
-                        tiles[i][j] = tile;
-                        tile->lower();
-                        tile->show(); // 显示瓷砖
+                        initializeFogOfWar();
                     }
                 }
-                inTaskMaze = false;
-                delete temp;
-                initializeFogOfWar();
             }
             // 更新迷雾
             updateFogOfWarOptimized(posX, posY-1, posX, posY);
