@@ -2,6 +2,7 @@
 #include "imgbutton.h"
 #include "mapdata.h"
 #include "qdir.h"
+#include "qpropertyanimation.h"
 #include "qstandardpaths.h"
 #include "ui_playwindow.h"
 #include "tiletexture.h"
@@ -91,11 +92,18 @@ PlayWindow::PlayWindow(QString mapPath, QWidget *parent)
     });
 }
 
-PlayWindow::PlayWindow(MapData *md, QWidget *parent)
+PlayWindow::PlayWindow(MapData *md, QString username, QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::PlayWindow)
 {
     ui->setupUi(this);
+    this->username = username;
+    initializeLeaderboardFile();
+    // qDebug() << username;
+    winSound = new QSoundEffect;
+    winSound->setSource(QUrl("qrc:/res/LevelWinSound.wav"));
+    winSound->setLoopCount(1); // 循环次数
+    winSound->setVolume(0.5f); // 音量 0~1之间
     this->mapData = md;
     mazeVector.append(md);
     ImgButton *autoFoundWay = new ImgButton(":/res/autoBt.png", ":/res/ButtonSound.wav");
@@ -165,6 +173,11 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
     levelLabel->setGeometry(620, 80, 150, 30);
     levelLabel->setStyleSheet("font-size: 18px; color: white;");
 
+    scoreLabel = new QLabel(this);
+    scoreLabel->setText("分数：" + QString::number(user_score));
+    scoreLabel->setGeometry(620, 140, 150, 30);
+    scoreLabel->setStyleSheet("font-size: 18px; color: white;");
+
     // 自动寻路按钮动画及逻辑实现
     connect(autoFoundWay, &ImgButton::clicked, [=](){
         //按钮弹跳
@@ -179,10 +192,123 @@ PlayWindow::PlayWindow(MapData *md, QWidget *parent)
     initializeFogOfWar();
 }
 
-
 PlayWindow::~PlayWindow()
 {
+    saveLeaderboard();
     delete ui;
+}
+
+void PlayWindow::showLeaderboard() {
+    // 确保排行榜已经加载并排序
+    loadLeaderboard();
+
+    QString leaderboardText;
+
+    // 排行榜为空时显示提示
+    if (leaderboard.isEmpty()) {
+        leaderboardText = "暂无数据";
+    } else {
+        // 遍历排行榜并格式化显示
+        for (const PlayerScore &score : leaderboard) {
+            leaderboardText += score.name + ": " + QString::number(score.score) + "\n";
+        }
+    }
+
+    qDebug() << "排行榜内容: " << leaderboardText;  // 调试输出显示的内容
+
+    QMessageBox::information(this, "排行榜", leaderboardText);
+}
+
+void PlayWindow::loadLeaderboard() {
+    QFile file(leaderboardFile);
+
+    // 打开文件进行读取
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "无法打开排行榜文件";
+        return;
+    }
+
+    QTextStream in(&file);
+    leaderboard.clear();  // 清空现有数据
+
+    // 读取每行数据并解析
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        qDebug() << "读取行: " << line;  // 输出读取的每一行
+        QStringList parts = line.split(",");
+
+        if (parts.size() == 2) {
+            QString name = parts[0].trimmed();  // 去除多余的空格
+            int score = parts[1].trimmed().toInt();  // 转为整数类型
+            leaderboard.append(PlayerScore{name, score});
+        } else {
+            qDebug() << "无效格式: " << line;
+        }
+    }
+
+    file.close();
+
+    // 排序，分数高的排前面
+    std::sort(leaderboard.begin(), leaderboard.end(), [](const PlayerScore &a, const PlayerScore &b) {
+        return a.score > b.score;  // 按分数从高到低排序
+    });
+
+    // 输出排序后的排行榜
+    for (const PlayerScore &score : leaderboard) {
+        qDebug() << score.name << ": " << score.score;
+    }
+}
+
+void PlayWindow::saveLeaderboard() {
+    QFile file(leaderboardFile);
+
+    // 打开文件进行写入
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qDebug() << "无法打开排行榜文件";
+        return;
+    }
+
+    QTextStream out(&file);
+    // 遍历排行榜并保存
+    for (const PlayerScore &score : leaderboard) {
+        out << score.name << "," << score.score << "\n";
+    }
+
+    file.close();
+}
+
+void PlayWindow::addScoreToLeaderboard(const QString &name, int score) {
+    loadLeaderboard();  // 加载现有的排行榜数据
+
+    // 查找是否已有该用户名的记录
+    bool playerFound = false;
+    for (PlayerScore &existingScore : leaderboard) {
+        if (existingScore.name == name) {
+            // 如果用户已经存在，则比较并保留较高的分数
+            if (existingScore.score < score) {
+                existingScore.score = score;  // 更新为更高的分数
+            }
+            playerFound = true;
+            break;
+        }
+    }
+
+    // 如果没有找到该玩家的记录，则添加新的玩家及分数
+    if (!playerFound) {
+        leaderboard.append(PlayerScore{name, score});
+    }
+
+    // 排序，分数高的排前面
+    std::sort(leaderboard.begin(), leaderboard.end(), [](const PlayerScore &a, const PlayerScore &b) {
+        return a.score > b.score;  // 按分数从高到低排序
+    });
+
+    // 保证最多保存前10名
+    if (leaderboard.size() > 10) {
+        leaderboard.removeLast();
+    }
+
+    saveLeaderboard();  // 保存更新后的排行榜
 }
 
 bool PlayWindow::isVisibleByRayCasting(int startX, int startY, int targetX, int targetY) {
@@ -217,6 +343,24 @@ bool PlayWindow::isVisibleByRayCasting(int startX, int startY, int targetX, int 
     return true; // 没有被墙壁阻挡
 }
 
+void PlayWindow::stopGame(bool isWon)
+{
+    //胜利播放胜利音效
+    winSound->play();
+    //标签落下动画
+    ui->congraLabel->raise();
+    QPropertyAnimation * anima =  new QPropertyAnimation(ui->congraLabel,"geometry");
+    anima->setDuration(1000);
+    anima->setStartValue(QRect(ui->congraLabel->x(),ui->congraLabel->y(),ui->congraLabel->width(),ui->congraLabel->height()));
+    anima->setEndValue(QRect(ui->congraLabel->x(),ui->congraLabel->y()+150,ui->congraLabel->width(),ui->congraLabel->height()));
+    anima->setEasingCurve(QEasingCurve::OutBounce);
+    anima->start();
+    // 使用QEventLoop等待动画完成
+    QEventLoop loop;
+    connect(anima, &QPropertyAnimation::finished, &loop, &QEventLoop::quit);  // 动画结束时退出循环
+    anima->start();
+    loop.exec();  // 等待动画完成
+}
 
 void PlayWindow::initializeFogOfWar() {
     for (int x = 0; x < this->mapData->getMapSize(); x++) {
@@ -476,6 +620,8 @@ void PlayWindow::executeTaskAt(int x, int y)
     QEventLoop loop;
     QObject::connect(thw, &TaskHandlerWindow::correct, [&]() {
         mapData->setIsFinished(mapData->getIsFinished() + 1);
+        user_score += 100;
+        scoreLabel->setText("分数：" + QString::number(user_score));
         thw->close();
         thw = nullptr;
         loop.quit(); // 退出事件循环
@@ -661,6 +807,9 @@ void PlayWindow::askNextLevel()
     // 设置消息框为模态，确保在此消息框未关闭前用户不能操作其他界面
     msgBox.exec();
     if(msgBox.clickedButton() == exitButton){
+        addScoreToLeaderboard(username, user_score);
+        showLeaderboard();  // 显示排行榜
+        stopGame(true);
         QMessageBox tempMsgBox;
         tempMsgBox.setWindowTitle("通关");
         tempMsgBox.setText("恭喜您已通关！");
@@ -780,6 +929,54 @@ void PlayWindow::sleep(int sec)
     QElapsedTimer t;
     t.start();
     while(t.elapsed()<sec);
+}
+
+bool PlayWindow::initializeLeaderboardFile() {
+    // 获取本地可写目录
+    QString writablePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QString leaderboardDirPath = writablePath + "/leaderboard/";
+    QDir leaderboardDir(leaderboardDirPath);
+
+    // 如果目录不存在，则创建该目录
+    if (!leaderboardDir.exists()) {
+        if (!leaderboardDir.mkpath(".")) {
+            QMessageBox::critical(nullptr, "错误", "无法创建 leaderboard 目录");
+            return false;
+        }
+    }
+
+    // 初始化排行榜文件
+    QString leaderboardFilePath = leaderboardDirPath + "leaderboard.txt";
+    qDebug() << leaderboardFilePath;
+
+    QFile file(leaderboardFilePath);
+
+    // 如果排行榜文件不存在，从资源文件中复制初始数据
+    if (!file.exists()) {
+        QString resourceFilePath = ":/leaderboard.txt";  // 从资源文件中读取
+        QFile resourceFile(resourceFilePath);
+        qDebug() << resourceFilePath;
+
+        if (resourceFile.open(QIODevice::ReadOnly)) {
+            // 打开排行榜文件进行写入
+            if (file.open(QIODevice::WriteOnly)) {
+                QTextStream in(&resourceFile);
+                QTextStream out(&file);
+                out << in.readAll();  // 将资源文件的内容复制到本地文件
+                file.close();
+            } else {
+                resourceFile.close();
+                QMessageBox::critical(nullptr, "错误", "无法创建本地排行榜文件");
+                return false;  // 无法创建本地文件
+            }
+            resourceFile.close();
+        } else {
+            QMessageBox::critical(nullptr, "错误", "无法从资源文件读取排行榜文件");
+            return false;  // 无法从资源文件读取
+        }
+    }
+
+    return true;  // 成功初始化排行榜文件
 }
 
 // 静态函数：初始化地图信息文件
@@ -1146,6 +1343,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 QObject::connect(thw, &TaskHandlerWindow::correct, [&]() {
                     thw->close();
                     mapData->setIsFinished(mapData->getIsFinished() + 1);
+                    user_score += 100;
+                    scoreLabel->setText("分数：" + QString::number(user_score));
                     thw = NULL;
                     return;
                 });
@@ -1259,6 +1458,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 QObject::connect(thw, &TaskHandlerWindow::correct, [&]() {
                     thw->close();
                     mapData->setIsFinished(mapData->getIsFinished() + 1);
+                    user_score += 100;
+                    scoreLabel->setText("分数：" + QString::number(user_score));
                     thw = NULL;
                     return;
                 });
@@ -1371,6 +1572,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 QObject::connect(thw, &TaskHandlerWindow::correct, [&]() {
                     thw->close();
                     mapData->setIsFinished(mapData->getIsFinished() + 1);
+                    user_score += 100;
+                    scoreLabel->setText("分数：" + QString::number(user_score));
                     thw = NULL;
                     return;
                 });
@@ -1485,6 +1688,8 @@ void PlayWindow::keyPressEvent(QKeyEvent *e)
                 QObject::connect(thw, &TaskHandlerWindow::correct, [&]() {
                     thw->close();
                     mapData->setIsFinished(mapData->getIsFinished() + 1);
+                    user_score += 100;
+                    scoreLabel->setText("分数：" + QString::number(user_score));
                     thw = NULL;
                     return;
                 });

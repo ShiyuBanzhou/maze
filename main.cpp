@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
     // 获取本地可写目录
     QString writablePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QString mapdataFilePath = writablePath + "/mapdata/";
+    QString user_name;
 
     // 注册登录界面
     RegisterLoginWindow rlw;
@@ -36,9 +37,10 @@ int main(int argc, char *argv[]) {
     rlw.show();
 
     // 连接登录窗口的登录成功信号，显示主窗口并关闭登录窗口
-    QObject::connect(&rlw, &RegisterLoginWindow::loginSuccess, [&]() {
+    QObject::connect(&rlw, &RegisterLoginWindow::loginSuccess, [&](QString username) {
         rlw.close(); // 关闭注册登录窗口
         mw.show();    // 显示主窗口
+        user_name = username;
     });
 
     // 连接主窗口的点击开始游戏信号，显示选关界面并关闭主窗口
@@ -61,7 +63,7 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(&mew, &MapEditWindow::randomMap, [&](MapData *md) {
         mew.close();
-        plw = new PlayWindow(md);
+        plw = new PlayWindow(md, user_name, nullptr);
         plw->show();
     });
 

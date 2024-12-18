@@ -1,0 +1,5 @@
+Alice,1500
+Bob,1200
+Charlie,1000
+David,800
+Eve,600

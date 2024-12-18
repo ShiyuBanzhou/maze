@@ -67,6 +67,7 @@ void TaskHandlerWindow::onSubmitButtonClicked()
     // 验证答案
     if (checkAnswer(userAnswer, correctAnswer)) {
         resultLabel->setText("Result: Correct!");
+        score += 100;
         resultLabel->repaint();
         // 启动一个定时器，在1秒后抛出信号
         // QTimer::singleShot(1000, this, &TaskHandlerWindow::generateNewTask);
@@ -119,4 +120,8 @@ int TaskHandlerWindow::generateMathQuestion(QString& question)
 bool TaskHandlerWindow::checkAnswer(int userAnswer, int correctAnswer)
 {
     return userAnswer == correctAnswer;
+}
+
+int TaskHandlerWindow::getScore(){
+    return this->score;
 }

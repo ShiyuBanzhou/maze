@@ -23,8 +23,8 @@ private:
     bool isFirstLogin = true;
 
 signals:
-    void registerSuccess(); // 注册成功信号
-    void loginSuccess(); // 登录成功信号
+    void registerSuccess(QString username); // 注册成功信号
+    void loginSuccess(QString username); // 登录成功信号
 
 private slots:
     void onRegisterButtonClicked(); // 注册按钮事件处理

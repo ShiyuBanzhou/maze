@@ -60,5 +60,8 @@
         <file>res/up3.png</file>
         <file>res/path.png</file>
         <file>res/return.png</file>
+        <file>res/LevelWinSound.wav</file>
+        <file>res/succeed.png</file>
+        <file>leaderboard.txt</file>
     </qresource>
 </RCC>

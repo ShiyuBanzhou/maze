@@ -90,7 +90,7 @@ void RegisterLoginWindow::onLoginButtonClicked()
         // 用户登录成功
         QMessageBox::information(nullptr, "成功", "恭喜您，登录成功！");
         // 抛出用户登录成功信息
-        emit loginSuccess();
+        emit loginSuccess(username);
     }
 
 }

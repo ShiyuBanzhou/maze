@@ -9,6 +9,22 @@
 
 #include <QWidget>
 #include <QStack>
+#include <qsoundeffect.h>
+#include <qstandardpaths.h>>
+
+// 排行榜项结构体
+struct PlayerScore {
+    QString name;
+    int score;
+
+    PlayerScore(QString n, int s) : name(n), score(s) {}
+
+    // 用于排序，分数高的排前面
+    bool operator<(const PlayerScore &other) const {
+        return score > other.score;  // 降序排序
+    }
+};
+
 
 namespace Ui {
 class PlayWindow;
@@ -20,12 +36,17 @@ class PlayWindow : public QWidget
 
 public:
     explicit PlayWindow(QString mapPath, QWidget *parent = nullptr);
-    explicit PlayWindow(MapData *md, QWidget *parent = nullptr);
+    explicit PlayWindow(MapData *md, QString username, QWidget *parent = nullptr);
     ~PlayWindow();
     void setMapPath(QString mapPath); // 设置地图地址
     // 非递归深度优先搜索实现寻路，如果有通路，返回true
     // BFS寻路
     bool findWay(bool drawPath); // 参数设置true，会绘制可行路线，否则不绘制
+    void addScoreToLeaderboard(const QString &name, int score);  // 添加新成绩
+    void loadLeaderboard();  // 加载排行榜
+    void saveLeaderboard();  // 保存排行榜
+    void showLeaderboard();  // 显示排行榜
+    int user_score = 0;
 
 protected:
     void paintEvent(QPaintEvent *event) override; // 重写paintEvent
@@ -97,6 +118,23 @@ private:
     bool isVisibleByRayCasting(int startX, int startY, int targetX, int targetY);
 
     void enterDeeperMaze(int taskX, int taskY);
+
+    void stopGame(bool isWon);
+
+    QSoundEffect * winSound = NULL; //胜利和失败音效
+
+    QVector<PlayerScore> leaderboard;  // 排行榜数据
+
+    QString leaderboardFile = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/leaderboard/leaderboard.txt";  // 排行榜文件路径
+
+    // 添加或更新排行榜成绩
+    void updateLeaderboardDisplay();
+
+    QString username;
+
+    bool initializeLeaderboardFile();
+
+    QLabel *scoreLabel;
 };
 
 #endif // PLAYWINDOW_H

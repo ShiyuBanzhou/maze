@@ -25,7 +25,37 @@
   <property name="windowTitle">
    <string>欢迎游玩</string>
   </property>
+  <widget class="QLabel" name="congraLabel">
+   <property name="geometry">
+    <rect>
+     <x>325</x>
+     <y>-120</y>
+     <width>150</width>
+     <height>120</height>
+    </rect>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>150</width>
+     <height>120</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>150</width>
+     <height>120</height>
+    </size>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap resource="res.qrc">:/res/succeed.png</pixmap>
+   </property>
+  </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="res.qrc"/>
+ </resources>
  <connections/>
 </ui>

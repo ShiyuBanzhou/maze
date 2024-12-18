@@ -20,6 +20,7 @@ class TaskHandlerWindow : public QWidget
 public:
     explicit TaskHandlerWindow(QWidget *parent = nullptr);
     ~TaskHandlerWindow();
+    int getScore();
 
 private:
     Ui::TaskHandlerWindow *ui;
@@ -39,6 +40,7 @@ private:
     int correctAnswer;
     int generateMathQuestion(QString& question);
     bool checkAnswer(int userAnswer, int correctAnswer);
+    int score = 0;
 signals:
     void correct();
 private slots:
